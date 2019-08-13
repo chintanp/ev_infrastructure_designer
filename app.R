@@ -25,8 +25,11 @@ library(leaflet.extras)
 library(leafgl)
 library(sf)
 
-options(shiny.host = '125.95.204.84')
-options(shiny.port = 8100)
+if (Sys.info()['sysname'] != "Windows") {
+  options(shiny.host = '125.95.204.84')
+  options(shiny.port = 8100)
+}
+
 
 LOOKUP_DISTANCE <- 10.0 / 0.000621371 # convert miles to m
 #####
@@ -635,10 +638,13 @@ server <- function(input, output, session) {
     ulid_submit <- ulid::ULIDgenerate()
     auth0_sub <- session$userData$auth0_info$sub
     auth0_userid <- strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
-    
-    if (!dir.exists(paste0("inputs/", auth0_userid))) {
-      dir.create(paste0("inputs/", auth0_userid))
+    if (!dir.exists("inputs")) {
+      dir.create("inputs")
+      if (!dir.exists(paste0("inputs/", auth0_userid))) {
+        dir.create(paste0("inputs/", auth0_userid))
+      }
     }
+
     
     dir.create(paste0("inputs/", auth0_userid, "/", ulid_submit))
     
