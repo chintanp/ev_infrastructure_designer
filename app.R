@@ -31,7 +31,6 @@ if (Sys.info()['sysname'] != "Windows") {
 }
 
 
-LOOKUP_DISTANCE <- 10.0 / 0.000621371 # convert miles to m
 #####
 # evse_dcfc <- read.csv("data/evse_locations/WA_EVSE_DCFCSC.csv")
 #####
@@ -77,51 +76,6 @@ all_chargers_chademo <-
   evse_dcfc[evse_dcfc$EV_Connector_Code == 1 |
               evse_dcfc$EV_Connector_Code == 3,]
 
-shape_trip_feasibility_combo <-
-  st_read(dsn = "data/combo", layer = "shape_combo") %>% st_simplify() %>%
-  st_transform("+proj=longlat +datum=WGS84 +no_defs") 
-
-shape_trip_feasibility_combo_utm <-
-  shape_trip_feasibility_combo %>%
-  st_transform("+proj=utm +zone=10 +datum=WGS84") 
-  
-shape_trip_feasibility_chademo <-
-  st_read(dsn = "data/chademo", layer = "shape_chademo") %>% st_simplify() %>%
-  st_transform("+proj=longlat +datum=WGS84 +no_defs") 
-
-# shape_trip_feasibility_chademo_utm <-
-#   shape_trip_feasibility_chademo %>%
-#   st_transform("+proj=utm +zone=10 +datum=WGS84")
-
-# shape_feasibility <-
-#     readOGR(dsn = "data/feasibility_overlay", layer = "road_network_weighted2019-03-29-10-13-38")
-# Transform to the correct CRS
-# shape_trip_feasibility_combo_ll <-
-#   spTransform(shape_trip_feasibility_combo,
-#               CRS("+proj=longlat +datum=WGS84 +no_defs"))
-# 
-# shape_trip_feasibility_combo_prj <-
-#   spTransform(shape_trip_feasibility_combo,
-#               CRS("+proj=utm +zone=10 +datum=WGS84"))
-# 
-# shape_trip_feasibility_chademo_ll <-
-#   spTransform(shape_trip_feasibility_chademo,
-#               CRS("+proj=longlat +datum=WGS84 +no_defs"))
-# 
-# shape_trip_feasibility_chademo_prj <-
-#   spTransform(shape_trip_feasibility_chademo,
-#               CRS("+proj=utm +zone=10 +datum=WGS84"))
-
-# proj4string(shape_trip_feasibility_combo) <- CRS("+proj=lcc +lat_1=47.33333333333334 +lat_2=45.83333333333334 +lat_0=45.33333333333334 +lon_0=-120.5 +x_0=500000.0000000002 +y_0=0 +ellps=GRS80 +units=us-ft +no_defs")
-# Create a buffer around roads
-buf_critical <-
-  gBuffer(as(shape_trip_feasibility_combo_utm, 'Spatial'),
-          width = LOOKUP_DISTANCE, 
-          byid = TRUE)
-# Transform the buffer
-buf_critical_ll <- spTransform(buf_critical,
-                               CRS("+proj=longlat +datum=WGS84 +no_defs"))
-
 overlay_names <-
   c("Buffer")
 
@@ -136,6 +90,10 @@ combo_icons <-
     iconAnchorX = 0,
     iconAnchorY = 0
   )
+# Read the RDS files
+shape_trip_feasibility_chademo <- readRDS("data/shape_trip_feasibility_chademo.Rds")
+shape_trip_feasibility_combo <- readRDS("data/shape_trip_feasibility_combo.Rds")
+buf_critical_ll <- readRDS("data/buf_critical_ll.Rds")
 
 wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
   setMaxBounds(-124.8361, 45.5437,-116.9174, 49.0024) %>%
@@ -640,12 +598,10 @@ server <- function(input, output, session) {
     auth0_userid <- strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
     if (!dir.exists("inputs")) {
       dir.create("inputs")
-      if (!dir.exists(paste0("inputs/", auth0_userid))) {
-        dir.create(paste0("inputs/", auth0_userid))
-      }
     }
-
-    
+    if (!dir.exists(paste0("inputs/", auth0_userid))) {
+      dir.create(paste0("inputs/", auth0_userid))
+    }
     dir.create(paste0("inputs/", auth0_userid, "/", ulid_submit))
     
     
