@@ -24,12 +24,19 @@ library(bs4Dash)
 library(leaflet.extras)
 library(leafgl)
 library(sf)
+library(DBI)
+library(RPostgres)
 
 if (Sys.info()['sysname'] != "Windows") {
   options(shiny.host = '125.95.204.84')
   options(shiny.port = 8100)
 }
 
+main_con <- DBI::dbConnect(RPostgres::Postgres(), 
+                  host = "localhost", 
+                  dbname = "wsdot_evse_main",
+                  user = Sys.getenv("MAIN_USERNAME"),
+                  password = Sys.getenv("MAIN_PWD"))
 
 #####
 # evse_dcfc <- read.csv("data/evse_locations/WA_EVSE_DCFCSC.csv")
@@ -312,7 +319,7 @@ server <- function(input, output, session) {
     siteIDs = NULL,
     siteDisplayHash = hash(),
     siteDetailsDF = data.frame(
-      ID = integer(),
+      input_evse_id = integer(),
       trip_count = numeric(),
       od_pairs = character(),
       latitude = numeric(),
@@ -321,6 +328,9 @@ server <- function(input, output, session) {
       chademo_power = numeric(),
       combo_plug_count = integer(),
       combo_power = numeric(),
+      level2_plug_count = integer(), 
+      level2_power = numeric(),
+      analysis_id = integer(),
       stringsAsFactors = FALSE
     ),
     submittedInputs = hash(),
@@ -332,7 +342,7 @@ server <- function(input, output, session) {
     print("New sites added now")
     for (i in 1:nrow(rvData$siteDetailsDF)) {
       leafletProxy(mapId = "wa_road_map") %>%
-        removeMarker(layerId = rvData$siteDetailsDF$ID[i])
+        removeMarker(layerId = rvData$siteDetailsDF$input_evse_id[i])
     }
     removeUI(selector = "#newSiteBtn")
     rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
@@ -379,7 +389,7 @@ server <- function(input, output, session) {
   
   observeEvent(input$radioInputs, {
     leafletProxy(mapId = "wa_road_map") %>%
-      removeMarker(layerId = rvData$siteDetailsDF$ID)
+      removeMarker(layerId = rvData$siteDetailsDF$input_evse_id)
     print("radio button clicked")
     output$siteDetails  <- DT::renderDataTable({
       submissionId <- input$radioInputs
@@ -406,7 +416,7 @@ server <- function(input, output, session) {
           lng = rvData$siteDetailsDF$longitude[i],
           label = paste0(
             "SiteID:",
-            rvData$siteDetailsDF$ID[i],
+            rvData$siteDetailsDF$input_evse_id[i],
             " @ ",
             signif(rvData$siteDetailsDF$latitude[i], digits = 5),
             ", ",
@@ -414,7 +424,7 @@ server <- function(input, output, session) {
           ),
           labelOptions = labelOptions(noHide = T),
           group = "overlay",
-          layerId = as.character(rvData$siteDetailsDF$ID[i])
+          layerId = as.character(rvData$siteDetailsDF$input_evse_id[i])
         )
     }
     
@@ -467,7 +477,8 @@ server <- function(input, output, session) {
               numericInput(
                 inputId = paste0("chademo_plug_count", rvData$siteID),
                 label = "Number of Chademo plugs",
-                value = 1
+                value = 1, 
+                min = 0
               ),
               sliderInput(
                 inputId = paste0("chademo_plug_power", rvData$siteID),
@@ -480,7 +491,8 @@ server <- function(input, output, session) {
               numericInput(
                 inputId = paste0("combo_plug_count", rvData$siteID),
                 label = "Number of COMBO plugs",
-                value = 1
+                value = 1, 
+                min = 0
               ),
               sliderInput(
                 inputId = paste0("combo_plug_power", rvData$siteID),
@@ -489,6 +501,20 @@ server <- function(input, output, session) {
                 min = 10,
                 max = 500,
                 step = 10
+              ),
+              numericInput(
+                inputId = paste0("level2_plug_count", rvData$siteID),
+                label = "Number of Level-2 plugs",
+                value = 1, 
+                min = 0
+              ),
+              sliderInput(
+                inputId = paste0("level2_plug_power", rvData$siteID),
+                label = 'Power per Level-2 plug',
+                value = 10,
+                min = 1,
+                max = 19.2,
+                step = 0.1
               ),
               circle = TRUE,
               status = "success",
@@ -562,7 +588,7 @@ server <- function(input, output, session) {
         del(ele_id, rvData$siteDisplayHash)
         
         rvData$siteDetailsDF <-
-          rvData$siteDetailsDF[-which(rvData$siteDetailsDF$ID == ele_id),]
+          rvData$siteDetailsDF[-which(rvData$siteDetailsDF$input_evse_id == ele_id),]
         
         removeUI(selector = paste0("#", ele_id))
         
@@ -579,60 +605,60 @@ server <- function(input, output, session) {
   
   observeEvent(input$resetButton, {
     for (i in 1:nrow(rvData$siteDetailsDF)) {
-      removeUI(selector = paste0("#", rvData$siteDetailsDF$ID[i]))
+      removeUI(selector = paste0("#", rvData$siteDetailsDF$input_evse_id[i]))
     }
     del(keys(rvData$siteDisplayHash), rvData$siteDisplayHash)
     
     removeUI(selector = '#site_editor_btns')
     
     leafletProxy(mapId = "wa_road_map") %>%
-      removeMarker(layerId = rvData$siteDetailsDF$ID)
+      removeMarker(layerId = rvData$siteDetailsDF$input_evse_id)
     
     rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
   })
   
   
   observeEvent(input$submitButton, {
-    ulid_submit <- ulid::ULIDgenerate()
+    # ulid_submit <- ulid::ULIDgenerate()
+    dt_submit <- Sys.time()
     auth0_sub <- session$userData$auth0_info$sub
     auth0_userid <- strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
-    if (!dir.exists("inputs")) {
-      dir.create("inputs")
-    }
-    if (!dir.exists(paste0("inputs/", auth0_userid))) {
-      dir.create(paste0("inputs/", auth0_userid))
-    }
-    dir.create(paste0("inputs/", auth0_userid, "/", ulid_submit))
-    
-    
+    # if (!dir.exists("inputs")) {
+    #   dir.create("inputs")
+    # }
+    # if (!dir.exists(paste0("inputs/", auth0_userid))) {
+    #   dir.create(paste0("inputs/", auth0_userid))
+    # }
+    # dir.create(paste0("inputs/", auth0_userid, "/", ulid_submit))
+    # 
+    # 
     for (i in 1:nrow(rvData$siteDetailsDF)) {
-      site_id <- rvData$siteDetailsDF$ID[i]
-      rvData$siteDetailsDF[i, 6:9] <-
+      site_id <- rvData$siteDetailsDF$input_evse_id[i]
+      rvData$siteDetailsDF[i, 6:11] <-
         c(input[[paste0("chademo_plug_count", site_id)]],
           input[[paste0("chademo_plug_power", site_id)]],
           input[[paste0("combo_plug_count", site_id)]],
-          input[[paste0("combo_plug_power", site_id)]])
+          input[[paste0("combo_plug_power", site_id)]],
+          input[[paste0("level2_plug_count", site_id)]],
+          input[[paste0("level2_plug_power", site_id)]])
     }
-    write.csv(
-      rvData$siteDetailsDF,
-      file = here::here(
-        "inputs",
-        auth0_userid,
-        ulid_submit,
-        paste0("siteDetails", ulid_submit, ".csv")
-      ),
-      row.names = FALSE
-    )
+    
+    DBI::dbWriteTable(main_con, "analysis_record", data.frame("user_id" = auth0_userid, "sim_date_time" = as.character(dt_submit), "status" = "inserted"), append = TRUE)
+    # Get the analysis_id from the just inserted record 
+    a_id <- DBI::dbGetQuery(main_con, paste0("select analysis_id from analysis_record where  sim_date_time =  '", as.character(dt_submit), "' and user_id = '", auth0_userid, "'"))$analysis_id
+    rvData$siteDetailsDF$analysis_id <- a_id
+    DBI::dbWriteTable(main_con, "new_evses", rvData$siteDetailsDF, append = TRUE)
+   
     for (i in 1:nrow(rvData$siteDetailsDF)) {
-      removeUI(selector = paste0("#", rvData$siteDetailsDF$ID[i]))
+      removeUI(selector = paste0("#", rvData$siteDetailsDF$input_evse_id[i]))
     }
     
     removeUI(selector = '#site_editor_btns')
     removeUI(selector = '#leadText')
+    
     leafletProxy(mapId = "wa_road_map") %>%
-      removeMarker(layerId = rvData$siteDetailsDF$ID)
-    
-    
+      removeMarker(layerId = rvData$siteDetailsDF$input_evse_id)
+
     del(keys(rvData$siteDisplayHash), rvData$siteDisplayHash)
     
     user_email <- session$userData$auth0_info$email
@@ -642,8 +668,8 @@ server <- function(input, output, session) {
                id = "postSubmitText",
                p(
                  paste0(
-                   "The input has been submitted for analysis. The analysis ID is: ",
-                   ulid_submit,
+                   "The input has been submitted for analysis. The analysis was submitted at: ",
+                   dt_submit,
                    ". An email will be sent to your registered email id - ",
                    user_email,
                    " when
@@ -652,28 +678,32 @@ server <- function(input, output, session) {
                ),
                actionBttn(inputId = "postSubmitBtn", label = "Run another analysis")
              ))
-    rvData$submittedInputs[[ulid_submit]] <- rvData$siteDetailsDF
     
-    if (length(rvData$submittedInputs) == 1) {
-      insertUI(
-        selector = "#submittedInputs",
-        ui = radioButtons(
-          inputId = "radioInputs",
-          label = "Select the input ID",
-          choiceNames = keys(rvData$submittedInputs),
-          choiceValues = keys(rvData$submittedInputs),
-          selected = keys(rvData$submittedInputs)[1]
-        )
-      )
-    } else {
-      updateRadioButtons(
-        session,
-        "radioInputs",
-        choiceNames = keys(rvData$submittedInputs),
-        choiceValues = keys(rvData$submittedInputs)
-      )
-      
-    }
+    # TODO: Read the submitted inputs and status from the database 
+    # and display as a table 
+    
+    # rvData$submittedInputs[[ulid_submit]] <- rvData$siteDetailsDF
+    # 
+    # if (length(rvData$submittedInputs) == 1) {
+    #   insertUI(
+    #     selector = "#submittedInputs",
+    #     ui = radioButtons(
+    #       inputId = "radioInputs",
+    #       label = "Select the input ID",
+    #       choiceNames = keys(rvData$submittedInputs),
+    #       choiceValues = keys(rvData$submittedInputs),
+    #       selected = keys(rvData$submittedInputs)[1]
+    #     )
+    #   )
+    # } else {
+    #   updateRadioButtons(
+    #     session,
+    #     "radioInputs",
+    #     choiceNames = keys(rvData$submittedInputs),
+    #     choiceValues = keys(rvData$submittedInputs)
+    #   )
+    #   
+    # }
     
     rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
     clearAllMarkers()
