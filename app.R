@@ -22,21 +22,26 @@ library(DT)
 library(auth0)
 library(bs4Dash)
 library(leaflet.extras)
-library(leafgl)
+# library(leafgl)
 library(sf)
 library(DBI)
 library(RPostgres)
+library(pool)
+library(png)
 
 if (Sys.info()['sysname'] != "Windows") {
   options(shiny.host = '125.95.204.84')
   options(shiny.port = 8100)
 }
 
-main_con <- DBI::dbConnect(RPostgres::Postgres(), 
-                  host = "localhost", 
-                  dbname = "wsdot_evse_main",
-                  user = Sys.getenv("MAIN_USERNAME"),
-                  password = Sys.getenv("MAIN_PWD"))
+main_con <- pool::dbPool(
+  RPostgres::Postgres(),
+  host = Sys.getenv("MAIN_HOST"),
+  dbname = Sys.getenv("MAIN_DB"),
+  user = Sys.getenv("MAIN_USER"),
+  password = Sys.getenv("MAIN_PWD"),
+  port = Sys.getenv("MAIN_PORT")
+)
 
 #####
 # evse_dcfc <- read.csv("data/evse_locations/WA_EVSE_DCFCSC.csv")
@@ -98,8 +103,10 @@ combo_icons <-
     iconAnchorY = 0
   )
 # Read the RDS files
-shape_trip_feasibility_chademo <- readRDS("data/shape_trip_feasibility_chademo.Rds")
-shape_trip_feasibility_combo <- readRDS("data/shape_trip_feasibility_combo.Rds")
+shape_trip_feasibility_chademo <-
+  readRDS("data/shape_trip_feasibility_chademo.Rds")
+shape_trip_feasibility_combo <-
+  readRDS("data/shape_trip_feasibility_combo.Rds")
 buf_critical_ll <- readRDS("data/buf_critical_ll.Rds")
 
 wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
@@ -120,14 +127,10 @@ wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
     color = "#750db5",
     group = base_layers[1],
     opacity = 1,
-    label = paste0(
-      "trip_count : ",
-      shape_trip_feasibility_combo$trip_count
-    ),
-    popup = paste0(
-      "trip_count : ",
-      shape_trip_feasibility_combo$trip_count
-    )
+    label = paste0("trip_count : ",
+                   shape_trip_feasibility_combo$trip_count),
+    popup = paste0("trip_count : ",
+                   shape_trip_feasibility_combo$trip_count)
   ) %>%
   addPolylines(
     data = shape_trip_feasibility_chademo,
@@ -135,14 +138,10 @@ wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
     color = "#0d4db5",
     group = base_layers[2],
     opacity = 1,
-    label = paste0(
-      "trip_count : ",
-      shape_trip_feasibility_chademo$trip_count
-    ),
-    popup = paste0(
-      "trip_count : ",
-      shape_trip_feasibility_chademo$trip_count
-    )
+    label = paste0("trip_count : ",
+                   shape_trip_feasibility_chademo$trip_count),
+    popup = paste0("trip_count : ",
+                   shape_trip_feasibility_chademo$trip_count)
   ) %>%
   addMarkers(
     lng = all_chargers_combo$Longitude ,
@@ -160,10 +159,12 @@ wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
     icon = combo_icons,
     group = base_layers[2]
   ) %>%
-  addPolygons(data = buf_critical_ll ,
-              color = "#a6bddb",
-              group = overlay_names[1], 
-              opacity = 0.3) %>%
+  addPolygons(
+    data = buf_critical_ll ,
+    color = "#a6bddb",
+    group = overlay_names[1],
+    opacity = 0.3
+  ) %>%
   addLayersControl(
     baseGroups = base_layers,
     overlayGroups = overlay_names,
@@ -183,35 +184,18 @@ ui <- bs4DashPage(
     border = TRUE,
     sidebarIcon = "bars",
     controlbarIcon = "th",
-    fixed = FALSE,
-    leftUi = bs4DropdownMenu(
-      show = FALSE,
-      align = "left",
-      status = "warning",
-      menuIcon = "envelope-open",
-      src = NULL
-    ),
-    rightUi = bs4DropdownMenu(
-      show = FALSE,
-      status = "danger",
-      src = "https://www.google.fr",
-      bs4DropdownMenuItem(text = "message 1",
-                          date = "today"),
-      bs4DropdownMenuItem(text = "message 2",
-                          date = "yesterday")
-    )
+    fixed = FALSE
   ),
   sidebar = bs4DashSidebar(
     skin = "light",
     status = "primary",
-    title = "WSDOT EVI-ABM Dashboard",
+    title = "EV Infrastructure Designer",
     brandColor = "primary",
     url = "",
     src = "",
     elevation = 3,
     opacity = 0.3,
-    bs4SidebarUserPanel(img = "https://image.flaticon.com/icons/svg/1149/1149168.svg",
-                        text = "Welcome Onboard!"),
+    imageOutput("logo2", height = 66, width = 200),
     bs4SidebarMenu(
       bs4SidebarHeader(""),
       bs4SidebarMenuItem("Home",
@@ -232,7 +216,7 @@ ui <- bs4DashPage(
     ),
     right_text = "2019"
   )),
-  title = "WSDOT EVSE Dashboard",
+  title = "EV Infrastructure Designer",
   body = bs4DashBody(bs4TabItems(
     bs4TabItem(tabName = "sortabled",
                fluidRow(
@@ -243,36 +227,25 @@ ui <- bs4DashPage(
                      closable = TRUE,
                      status = "primary",
                      collapsible = TRUE,
-                     labelText = 1,
-                     labelStatus = "primary",
                      labelTooltip = "WSDOT Road Network",
-                     dropdownIcon = "wrench",
-                     dropdownMenu = dropdownItemList(
-                       dropdownItem(url = "https://www.google.com", name = "Link to google"),
-                       dropdownItem(url = "#", name = "item 2"),
-                       dropdownDivider(),
-                       dropdownItem(url = "#", name = "item 3")
-                     ),
                      elevation = 4,
                      width = NULL,
                      solidHeader = TRUE,
                      withSpinner(
-                       leafglOutput("wa_road_map", height = 700),
+                       leafletOutput("wa_road_map", height = 700),
                        type = 8,
                        color = "#0dc5c1"
                      )
-                   ),
-                   tags$div(
-                     width = 9,
-                     elevation = 4,
-                     status = "primary",
-                     class = "table",
-                     tags$h3("Submission Details"),
-                     tags$div(
-                       DT::dataTableOutput(outputId = "siteDetails"),
-                       width = 9
-                     )
                    )
+                   # tags$div(
+                   #   width = 9,
+                   #   elevation = 4,
+                   #   status = "primary",
+                   #   class = "table",
+                   #   tags$h3("Submission Details"),
+                   #   tags$div(DT::dataTableOutput(outputId = "siteDetails"),
+                   #            width = 9)
+                   # )
                  ),
                  column(
                    width = 3,
@@ -296,13 +269,13 @@ ui <- bs4DashPage(
                      ),
                      tags$div(id = "postSubmit")
                    ),
-                   bs4Card(
-                     width = NULL,
-                     solidHeader = TRUE,
-                     status = "success",
-                     title = "Submitted Inputs",
-                     uiOutput(outputId = "submittedInputs")
-                   ),
+                   # bs4Card(
+                   #   width = NULL,
+                   #   solidHeader = TRUE,
+                   #   status = "success",
+                   #   title = "Submitted Inputs",
+                   #   uiOutput(outputId = "submittedInputs")
+                   # ),
                    verbatimTextOutput("user_info")
                  )
                ))
@@ -328,7 +301,7 @@ server <- function(input, output, session) {
       chademo_power = numeric(),
       combo_plug_count = integer(),
       combo_power = numeric(),
-      level2_plug_count = integer(), 
+      level2_plug_count = integer(),
       level2_power = numeric(),
       analysis_id = integer(),
       stringsAsFactors = FALSE
@@ -477,7 +450,7 @@ server <- function(input, output, session) {
               numericInput(
                 inputId = paste0("chademo_plug_count", rvData$siteID),
                 label = "Number of Chademo plugs",
-                value = 1, 
+                value = 1,
                 min = 0
               ),
               sliderInput(
@@ -491,7 +464,7 @@ server <- function(input, output, session) {
               numericInput(
                 inputId = paste0("combo_plug_count", rvData$siteID),
                 label = "Number of COMBO plugs",
-                value = 1, 
+                value = 1,
                 min = 0
               ),
               sliderInput(
@@ -505,7 +478,7 @@ server <- function(input, output, session) {
               numericInput(
                 inputId = paste0("level2_plug_count", rvData$siteID),
                 label = "Number of Level-2 plugs",
-                value = 1, 
+                value = 1,
                 min = 0
               ),
               sliderInput(
@@ -623,6 +596,8 @@ server <- function(input, output, session) {
     dt_submit <- Sys.time()
     auth0_sub <- session$userData$auth0_info$sub
     auth0_userid <- strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
+    user_name <- session$userData$auth0_info$name
+    user_email <- session$userData$auth0_info$email
     # if (!dir.exists("inputs")) {
     #   dir.create("inputs")
     # }
@@ -630,8 +605,8 @@ server <- function(input, output, session) {
     #   dir.create(paste0("inputs/", auth0_userid))
     # }
     # dir.create(paste0("inputs/", auth0_userid, "/", ulid_submit))
-    # 
-    # 
+    #
+    #
     for (i in 1:nrow(rvData$siteDetailsDF)) {
       site_id <- rvData$siteDetailsDF$input_evse_id[i]
       rvData$siteDetailsDF[i, 6:11] <-
@@ -643,12 +618,46 @@ server <- function(input, output, session) {
           input[[paste0("level2_plug_power", site_id)]])
     }
     
-    DBI::dbWriteTable(main_con, "analysis_record", data.frame("user_id" = auth0_userid, "sim_date_time" = as.character(dt_submit), "status" = "inserted"), append = TRUE)
-    # Get the analysis_id from the just inserted record 
-    a_id <- DBI::dbGetQuery(main_con, paste0("select analysis_id from analysis_record where  sim_date_time =  '", as.character(dt_submit), "' and user_id = '", auth0_userid, "'"))$analysis_id
+    DBI::dbWriteTable(
+      main_con,
+      "analysis_record",
+      data.frame(
+        "user_id" = auth0_userid,
+        "sim_date_time" = as.character(dt_submit),
+        "status" = "inserted"
+      ),
+      append = TRUE
+    )
+    
+    DBI::dbGetQuery(
+      main_con,
+      paste0(
+        "insert into user_details (user_id, user_name, email_id, last_submit_date) values ('",
+        auth0_userid,
+        "', '",
+        user_name,
+        "', '",
+        user_email,
+        "', '",
+        as.character(dt_submit),
+        "' ) on conflict (user_id) do update set last_submit_date = EXCLUDED.last_submit_date"
+      )
+    )
+    # Get the analysis_id from the just inserted record
+    a_id <-
+      DBI::dbGetQuery(
+        main_con,
+        paste0(
+          "select analysis_id from analysis_record where  sim_date_time =  '",
+          as.character(dt_submit),
+          "' and user_id = '",
+          auth0_userid,
+          "'"
+        )
+      )$analysis_id
     rvData$siteDetailsDF$analysis_id <- a_id
     DBI::dbWriteTable(main_con, "new_evses", rvData$siteDetailsDF, append = TRUE)
-   
+    
     for (i in 1:nrow(rvData$siteDetailsDF)) {
       removeUI(selector = paste0("#", rvData$siteDetailsDF$input_evse_id[i]))
     }
@@ -658,10 +667,10 @@ server <- function(input, output, session) {
     
     leafletProxy(mapId = "wa_road_map") %>%
       removeMarker(layerId = rvData$siteDetailsDF$input_evse_id)
-
+    
     del(keys(rvData$siteDisplayHash), rvData$siteDisplayHash)
     
-    user_email <- session$userData$auth0_info$email
+    
     
     insertUI(selector = "#postSubmit",
              ui = tags$div(
@@ -679,11 +688,11 @@ server <- function(input, output, session) {
                actionBttn(inputId = "postSubmitBtn", label = "Run another analysis")
              ))
     
-    # TODO: Read the submitted inputs and status from the database 
-    # and display as a table 
+    # TODO: Read the submitted inputs and status from the database
+    # and display as a table
     
     # rvData$submittedInputs[[ulid_submit]] <- rvData$siteDetailsDF
-    # 
+    #
     # if (length(rvData$submittedInputs) == 1) {
     #   insertUI(
     #     selector = "#submittedInputs",
@@ -702,7 +711,7 @@ server <- function(input, output, session) {
     #     choiceNames = keys(rvData$submittedInputs),
     #     choiceValues = keys(rvData$submittedInputs)
     #   )
-    #   
+    #
     # }
     
     rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
@@ -738,6 +747,14 @@ server <- function(input, output, session) {
         
       )
     )
+  })
+  
+  output$logo2 <- renderImage({
+    return(list(src = "data/logo2.png",
+                width = 200, 
+                height = 66,
+                contentType = "image/png",
+                alt = "logo"))
   })
 }
 
