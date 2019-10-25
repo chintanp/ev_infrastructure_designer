@@ -82,11 +82,11 @@ for (i in 1:nrow(evse_dcfc)) {
 
 all_chargers_combo <-
   evse_dcfc[evse_dcfc$EV_Connector_Code == 2 |
-              evse_dcfc$EV_Connector_Code == 3,]
+              evse_dcfc$EV_Connector_Code == 3, ]
 
 all_chargers_chademo <-
   evse_dcfc[evse_dcfc$EV_Connector_Code == 1 |
-              evse_dcfc$EV_Connector_Code == 3,]
+              evse_dcfc$EV_Connector_Code == 3, ]
 
 overlay_names <-
   c("Buffer")
@@ -110,7 +110,7 @@ shape_trip_feasibility_combo <-
 buf_critical_ll <- readRDS("data/buf_critical_ll.Rds")
 
 wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
-  setMaxBounds(-124.8361, 45.5437,-116.9174, 49.0024) %>%
+  setMaxBounds(-124.8361, 45.5437, -116.9174, 49.0024) %>%
   addProviderTiles(
     "MapBox",
     options = providerTileOptions(
@@ -224,7 +224,7 @@ ui <- bs4DashPage(
                    width = 9,
                    bs4Card(
                      title = "WSDOT Road Network",
-                     closable = TRUE,
+                     closable = FALSE,
                      status = "primary",
                      collapsible = TRUE,
                      labelTooltip = "WSDOT Road Network",
@@ -261,6 +261,7 @@ ui <- bs4DashPage(
                      width = NULL,
                      title = "New Site List",
                      solidHeader = TRUE,
+                     closable = FALSE,
                      status = "danger",
                      tags$div(id = 'siteEditor'),
                      tags$div(
@@ -318,7 +319,7 @@ server <- function(input, output, session) {
         removeMarker(layerId = rvData$siteDetailsDF$input_evse_id[i])
     }
     removeUI(selector = "#newSiteBtn")
-    rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
+    rvData$siteDetailsDF <- rvData$siteDetailsDF[0, ]
     rvData$firstClick <- FALSE
   }
   
@@ -447,48 +448,66 @@ server <- function(input, output, session) {
             2,
             dropdownButton(
               tags$h5("Enter the number of plugs and power per plug"),
-              numericInput(
-                inputId = paste0("chademo_plug_count", rvData$siteID),
-                label = "Number of Chademo plugs",
-                value = 1,
-                min = 0
+              fluidRow(column(
+                6,
+                numericInput(
+                  inputId = paste0("chademo_plug_count", rvData$siteID),
+                  label = "Number of CHAdeMO plugs",
+                  value = 1,
+                  min = 0
+                )
               ),
-              sliderInput(
-                inputId = paste0("chademo_plug_power", rvData$siteID),
-                label = 'Power per Chademo plug',
-                value = 50,
-                min = 10,
-                max = 500,
-                step = 10
+              column(
+                6,
+                sliderInput(
+                  inputId = paste0("chademo_plug_power", rvData$siteID),
+                  label = 'Power per CHAdeMO plug (kW)',
+                  value = 50,
+                  min = 10,
+                  max = 500,
+                  step = 10
+                )
+              )),
+              fluidRow(column(
+                6,
+                numericInput(
+                  inputId = paste0("combo_plug_count", rvData$siteID),
+                  label = "Number of COMBO plugs",
+                  value = 1,
+                  min = 0
+                )
               ),
-              numericInput(
-                inputId = paste0("combo_plug_count", rvData$siteID),
-                label = "Number of COMBO plugs",
-                value = 1,
-                min = 0
+              column(
+                6,
+                sliderInput(
+                  inputId = paste0("combo_plug_power", rvData$siteID),
+                  label = 'Power per COMBO  (kW)',
+                  value = 50,
+                  min = 10,
+                  max = 500,
+                  step = 10
+                )
+              )),
+              fluidRow(column(
+                6,
+                numericInput(
+                  inputId = paste0("level2_plug_count", rvData$siteID),
+                  label = "Number of Level-2 plugs",
+                  value = 1,
+                  min = 0
+                )
               ),
-              sliderInput(
-                inputId = paste0("combo_plug_power", rvData$siteID),
-                label = 'Power per COMBO plug',
-                value = 50,
-                min = 10,
-                max = 500,
-                step = 10
-              ),
-              numericInput(
-                inputId = paste0("level2_plug_count", rvData$siteID),
-                label = "Number of Level-2 plugs",
-                value = 1,
-                min = 0
-              ),
-              sliderInput(
-                inputId = paste0("level2_plug_power", rvData$siteID),
-                label = 'Power per Level-2 plug',
-                value = 10,
-                min = 1,
-                max = 19.2,
-                step = 0.1
-              ),
+              column(
+                6,
+                sliderInput(
+                  inputId = paste0("level2_plug_power", rvData$siteID),
+                  label = 'Power per Level-2 plug',
+                  value = 10,
+                  min = 1,
+                  max = 19.2,
+                  step = 0.1
+                )
+              )),
               circle = TRUE,
               status = "success",
               icon = icon("sliders"),
@@ -561,7 +580,7 @@ server <- function(input, output, session) {
         del(ele_id, rvData$siteDisplayHash)
         
         rvData$siteDetailsDF <-
-          rvData$siteDetailsDF[-which(rvData$siteDetailsDF$input_evse_id == ele_id),]
+          rvData$siteDetailsDF[-which(rvData$siteDetailsDF$input_evse_id == ele_id), ]
         
         removeUI(selector = paste0("#", ele_id))
         
@@ -587,7 +606,7 @@ server <- function(input, output, session) {
     leafletProxy(mapId = "wa_road_map") %>%
       removeMarker(layerId = rvData$siteDetailsDF$input_evse_id)
     
-    rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
+    rvData$siteDetailsDF <- rvData$siteDetailsDF[0, ]
   })
   
   
@@ -714,7 +733,7 @@ server <- function(input, output, session) {
     #
     # }
     
-    rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
+    rvData$siteDetailsDF <- rvData$siteDetailsDF[0, ]
     clearAllMarkers()
   })
   
@@ -750,12 +769,16 @@ server <- function(input, output, session) {
   })
   
   output$logo2 <- renderImage({
-    return(list(src = "data/logo2.png",
-                width = 200, 
-                height = 66,
-                contentType = "image/png",
-                alt = "logo"))
-  })
+    return(
+      list(
+        src = "data/logo2.png",
+        width = 200,
+        height = 66,
+        contentType = "image/png",
+        alt = "logo"
+      )
+    )
+  }, deleteFile = FALSE)
 }
 
 auth0::shinyAppAuth0(ui, server)
