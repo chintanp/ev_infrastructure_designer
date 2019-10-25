@@ -82,11 +82,11 @@ for (i in 1:nrow(evse_dcfc)) {
 
 all_chargers_combo <-
   evse_dcfc[evse_dcfc$EV_Connector_Code == 2 |
-              evse_dcfc$EV_Connector_Code == 3, ]
+              evse_dcfc$EV_Connector_Code == 3,]
 
 all_chargers_chademo <-
   evse_dcfc[evse_dcfc$EV_Connector_Code == 1 |
-              evse_dcfc$EV_Connector_Code == 3, ]
+              evse_dcfc$EV_Connector_Code == 3,]
 
 overlay_names <-
   c("Buffer")
@@ -110,7 +110,7 @@ shape_trip_feasibility_combo <-
 buf_critical_ll <- readRDS("data/buf_critical_ll.Rds")
 
 wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
-  setMaxBounds(-124.8361, 45.5437, -116.9174, 49.0024) %>%
+  setMaxBounds(-124.8361, 45.5437,-116.9174, 49.0024) %>%
   addProviderTiles(
     "MapBox",
     options = providerTileOptions(
@@ -121,36 +121,36 @@ wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
     group = base_tile_layers[1]
   )  %>%
   # Base groups
-  addPolylines(
-    data = shape_trip_feasibility_combo,
-    weight = shape_trip_feasibility_combo$trip_count / 20000,
-    color = "#750db5",
-    group = base_layers[1],
-    opacity = 1,
-    label = paste0("trip_count : ",
-                   shape_trip_feasibility_combo$trip_count),
-    popup = paste0("trip_count : ",
-                   shape_trip_feasibility_combo$trip_count)
-  ) %>%
-  addPolylines(
-    data = shape_trip_feasibility_chademo,
-    weight = shape_trip_feasibility_chademo$trip_count / 20000,
-    color = "#0d4db5",
-    group = base_layers[2],
-    opacity = 1,
-    label = paste0("trip_count : ",
-                   shape_trip_feasibility_chademo$trip_count),
-    popup = paste0("trip_count : ",
-                   shape_trip_feasibility_chademo$trip_count)
-  ) %>%
-  addMarkers(
-    lng = all_chargers_combo$Longitude ,
-    lat = all_chargers_combo$Latitude,
-    popup = paste0("ID : ", all_chargers_combo$ID),
-    label = paste0("ID : ", all_chargers_combo$ID),
-    icon = combo_icons,
-    group = base_layers[1]
-  )  %>%
+  # addPolylines(
+  #   data = shape_trip_feasibility_combo,
+  #   weight = shape_trip_feasibility_combo$trip_count / 20000,
+  #   color = "#750db5",
+  #   group = base_layers[1],
+  #   opacity = 1,
+  #   label = paste0("trip_count : ",
+  #                  shape_trip_feasibility_combo$trip_count),
+  #   popup = paste0("trip_count : ",
+  #                  shape_trip_feasibility_combo$trip_count)
+# ) %>%
+# addPolylines(
+#   data = shape_trip_feasibility_chademo,
+#   weight = shape_trip_feasibility_chademo$trip_count / 20000,
+#   color = "#0d4db5",
+#   group = base_layers[2],
+#   opacity = 1,
+#   label = paste0("trip_count : ",
+#                  shape_trip_feasibility_chademo$trip_count),
+#   popup = paste0("trip_count : ",
+#                  shape_trip_feasibility_chademo$trip_count)
+# ) %>%
+addMarkers(
+  lng = all_chargers_combo$Longitude ,
+  lat = all_chargers_combo$Latitude,
+  popup = paste0("ID : ", all_chargers_combo$ID),
+  label = paste0("ID : ", all_chargers_combo$ID),
+  icon = combo_icons,
+  group = base_layers[1]
+)  %>%
   addMarkers(
     lng = all_chargers_chademo$Longitude ,
     lat = all_chargers_chademo$Latitude,
@@ -300,10 +300,22 @@ server <- function(input, output, session) {
       longitude = numeric(),
       chademo_plug_count = integer(),
       chademo_power = numeric(),
+      chademo_charging_price_unit = character(), 
+      chademo_charging_price = numeric(), 
+      chademo_parking_price_unit = character(), 
+      chademo_parking_price = numeric(),
       combo_plug_count = integer(),
       combo_power = numeric(),
+      combo_charging_price_unit = character(), 
+      combo_charging_price = numeric(), 
+      combo_parking_price_unit = character(), 
+      combo_parking_price = numeric(),
       level2_plug_count = integer(),
       level2_power = numeric(),
+      level2_charging_price_unit = character(), 
+      level2_charging_price = numeric(), 
+      level2_parking_price_unit = character(), 
+      level2_parking_price = numeric(),
       analysis_id = integer(),
       stringsAsFactors = FALSE
     ),
@@ -319,7 +331,7 @@ server <- function(input, output, session) {
         removeMarker(layerId = rvData$siteDetailsDF$input_evse_id[i])
     }
     removeUI(selector = "#newSiteBtn")
-    rvData$siteDetailsDF <- rvData$siteDetailsDF[0, ]
+    rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
     rvData$firstClick <- FALSE
   }
   
@@ -447,71 +459,223 @@ server <- function(input, output, session) {
           column(
             2,
             dropdownButton(
-              tags$h5("Enter the number of plugs and power per plug"),
-              fluidRow(column(
-                6,
-                numericInput(
-                  inputId = paste0("chademo_plug_count", rvData$siteID),
-                  label = "Number of CHAdeMO plugs",
-                  value = 1,
-                  min = 0
-                )
+              tags$h4(paste0("Enter the station ", rvData$siteID, " details")),
+              fluidRow(
+                column(
+                  3,
+                  numericInput(
+                    inputId = paste0("chademo_plug_count", rvData$siteID),
+                    label = "Number of CHAdeMO plugs",
+                    value = 1,
+                    min = 0
+                  )
+                ),
+                column(
+                  3,
+                  sliderInput(
+                    inputId = paste0("chademo_plug_power", rvData$siteID),
+                    label = 'Power per CHAdeMO plug (kW)',
+                    value = 50,
+                    min = 10,
+                    max = 500,
+                    step = 10
+                  )
+                ),
+                column(3,
+                       wellPanel(
+                         column(
+                           12,
+                           selectInput(
+                             inputId = paste0("dd_chademo_charging_unit", rvData$siteID),
+                             choices = c("min", "kWh", "fixed"),
+                             label = "Unit"
+                           )
+                           
+                         ),
+                         column(
+                           12,
+                           sliderInput(
+                             inputId = paste0("chademo_charging_price_slider", rvData$siteID),
+                             label = 'Charging Price ($)',
+                             value = 0.5,
+                             min = 0,
+                             max = 10,
+                             step = 0.1
+                           )
+                           
+                         )
+                       )),
+                column(3,
+                       wellPanel(
+                         column(
+                           12,
+                           selectInput(
+                             inputId = paste0("dd_chademo_parking_unit", rvData$siteID),
+                             choices = c("min", "hour", "fixed"),
+                             label = "Unit"
+                           )
+                           
+                         ),
+                         column(
+                           12,
+                           sliderInput(
+                             inputId = paste0("chademo_parking_price_slider", rvData$siteID),
+                             label = 'Parking Price ($)',
+                             value = 0.5,
+                             min = 0,
+                             max = 10,
+                             step = 0.1
+                           )
+                           
+                         )
+                       ))
               ),
-              column(
-                6,
-                sliderInput(
-                  inputId = paste0("chademo_plug_power", rvData$siteID),
-                  label = 'Power per CHAdeMO plug (kW)',
-                  value = 50,
-                  min = 10,
-                  max = 500,
-                  step = 10
-                )
-              )),
-              fluidRow(column(
-                6,
-                numericInput(
-                  inputId = paste0("combo_plug_count", rvData$siteID),
-                  label = "Number of COMBO plugs",
-                  value = 1,
-                  min = 0
-                )
+              hr(),
+              fluidRow(
+                column(
+                  3,
+                  numericInput(
+                    inputId = paste0("combo_plug_count", rvData$siteID),
+                    label = "Number of COMBO plugs",
+                    value = 1,
+                    min = 0
+                  )
+                ),
+                column(
+                  3,
+                  sliderInput(
+                    inputId = paste0("combo_plug_power", rvData$siteID),
+                    label = 'Power per COMBO  (kW)',
+                    value = 50,
+                    min = 10,
+                    max = 500,
+                    step = 10
+                  )
+                ),
+                column(3,
+                       wellPanel(
+                         column(
+                           12,
+                           selectInput(
+                             inputId = paste0("dd_combo_charging_unit", rvData$siteID),
+                             choices = c("min", "kWh", "fixed"),
+                             label = "Unit"
+                           )
+                           
+                         ),
+                         column(
+                           12,
+                           sliderInput(
+                             inputId = paste0("combo_charging_price_slider", rvData$siteID),
+                             label = 'Charging Price ($)',
+                             value = 0.5,
+                             min = 0,
+                             max = 10,
+                             step = 0.1
+                           )
+                           
+                         )
+                       )),
+                column(3,
+                       wellPanel(
+                         column(
+                           12,
+                           selectInput(
+                             inputId = paste0("dd_combo_parking_unit", rvData$siteID),
+                             choices = c("min", "hour", "fixed"),
+                             label = "Unit"
+                           )
+                           
+                         ),
+                         column(
+                           12,
+                           sliderInput(
+                             inputId = paste0("combo_parking_price_slider", rvData$siteID),
+                             label = 'Parking Price ($)',
+                             value = 0.5,
+                             min = 0,
+                             max = 10,
+                             step = 0.1
+                           )
+                           
+                         )
+                       ))
               ),
-              column(
-                6,
-                sliderInput(
-                  inputId = paste0("combo_plug_power", rvData$siteID),
-                  label = 'Power per COMBO  (kW)',
-                  value = 50,
-                  min = 10,
-                  max = 500,
-                  step = 10
-                )
-              )),
-              fluidRow(column(
-                6,
-                numericInput(
-                  inputId = paste0("level2_plug_count", rvData$siteID),
-                  label = "Number of Level-2 plugs",
-                  value = 1,
-                  min = 0
-                )
+              hr(),
+              fluidRow(
+                column(
+                  3,
+                  numericInput(
+                    inputId = paste0("level2_plug_count", rvData$siteID),
+                    label = "Number of Level-2 plugs",
+                    value = 1,
+                    min = 0
+                  )
+                ),
+                column(
+                  3,
+                  sliderInput(
+                    inputId = paste0("level2_plug_power", rvData$siteID),
+                    label = 'Power per Level-2 plug',
+                    value = 10,
+                    min = 1,
+                    max = 19.2,
+                    step = 0.1
+                  )
+                ),
+                column(3,
+                       wellPanel(
+                         column(
+                           12,
+                           selectInput(
+                             inputId = paste0("dd_level2_charging_unit", rvData$siteID),
+                             choices = c("min", "kWh", "fixed"),
+                             label = "Unit"
+                           )
+                           
+                         ),
+                         column(
+                           12,
+                           sliderInput(
+                             inputId = paste0("level2_charging_price_slider", rvData$siteID),
+                             label = 'Charging Price ($)',
+                             value = 0.5,
+                             min = 0,
+                             max = 10,
+                             step = 0.1
+                           )
+                           
+                         )
+                       )),
+                column(3,
+                       wellPanel(
+                         column(
+                           12,
+                           selectInput(
+                             inputId = paste0("dd_level2_parking_unit", rvData$siteID),
+                             choices = c("min", "hour", "fixed"),
+                             label = "Unit"
+                           )
+                           
+                         ),
+                         column(
+                           12,
+                           sliderInput(
+                             inputId = paste0("level2_parking_price_slider", rvData$siteID),
+                             label = 'Parking Price ($)',
+                             value = 0.5,
+                             min = 0,
+                             max = 10,
+                             step = 0.1
+                           )
+                           
+                         )
+                       ))
               ),
-              column(
-                6,
-                sliderInput(
-                  inputId = paste0("level2_plug_power", rvData$siteID),
-                  label = 'Power per Level-2 plug',
-                  value = 10,
-                  min = 1,
-                  max = 19.2,
-                  step = 0.1
-                )
-              )),
               circle = TRUE,
               status = "success",
               icon = icon("sliders"),
-              width = "250px",
+              width = "1200px",
               tooltip = tooltipOptions(title = "Click to enter the site details !", placement = "left")
             )
           ),
@@ -537,6 +701,13 @@ server <- function(input, output, session) {
         insertUI(
           selector = '#siteEditorBtns',
           ui = tags$div(
+            hr(),
+            materialSwitch(
+              inputId = "tesla_toggle",
+              label = "Tesla", 
+              value = FALSE,
+              status = "primary"
+            ),
             actionBttn(inputId = "submitButton", label = "Submit for analysis"),
             actionBttn(inputId = "resetButton", label = "Reset"),
             id = 'site_editor_btns'
@@ -580,7 +751,7 @@ server <- function(input, output, session) {
         del(ele_id, rvData$siteDisplayHash)
         
         rvData$siteDetailsDF <-
-          rvData$siteDetailsDF[-which(rvData$siteDetailsDF$input_evse_id == ele_id), ]
+          rvData$siteDetailsDF[-which(rvData$siteDetailsDF$input_evse_id == ele_id),]
         
         removeUI(selector = paste0("#", ele_id))
         
@@ -606,7 +777,7 @@ server <- function(input, output, session) {
     leafletProxy(mapId = "wa_road_map") %>%
       removeMarker(layerId = rvData$siteDetailsDF$input_evse_id)
     
-    rvData$siteDetailsDF <- rvData$siteDetailsDF[0, ]
+    rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
   })
   
   
@@ -628,13 +799,25 @@ server <- function(input, output, session) {
     #
     for (i in 1:nrow(rvData$siteDetailsDF)) {
       site_id <- rvData$siteDetailsDF$input_evse_id[i]
-      rvData$siteDetailsDF[i, 6:11] <-
+      rvData$siteDetailsDF[i, 6:23] <-
         c(input[[paste0("chademo_plug_count", site_id)]],
           input[[paste0("chademo_plug_power", site_id)]],
+          input[[paste0("dd_chademo_charging_unit", site_id)]],
+          input[[paste0("chademo_charging_price_slider", site_id)]],
+          input[[paste0("dd_chademo_parking_unit", site_id)]],
+          input[[paste0("chademo_parking_price_slider", site_id)]],
           input[[paste0("combo_plug_count", site_id)]],
           input[[paste0("combo_plug_power", site_id)]],
+          input[[paste0("dd_combo_charging_unit", site_id)]],
+          input[[paste0("combo_charging_price_slider", site_id)]],
+          input[[paste0("dd_combo_parking_unit", site_id)]],
+          input[[paste0("combo_parking_price_slider", site_id)]],
           input[[paste0("level2_plug_count", site_id)]],
-          input[[paste0("level2_plug_power", site_id)]])
+          input[[paste0("level2_plug_power", site_id)]],
+          input[[paste0("dd_level2_charging_unit", site_id)]],
+          input[[paste0("level2_charging_price_slider", site_id)]],
+          input[[paste0("dd_level2_parking_unit", site_id)]],
+          input[[paste0("level2_parking_price_slider", site_id)]])
     }
     
     DBI::dbWriteTable(
@@ -643,7 +826,8 @@ server <- function(input, output, session) {
       data.frame(
         "user_id" = auth0_userid,
         "sim_date_time" = as.character(dt_submit),
-        "status" = "inserted"
+        "status" = "inserted", 
+        "include_tesla" = input$tesla_toggle
       ),
       append = TRUE
     )
@@ -733,7 +917,7 @@ server <- function(input, output, session) {
     #
     # }
     
-    rvData$siteDetailsDF <- rvData$siteDetailsDF[0, ]
+    rvData$siteDetailsDF <- rvData$siteDetailsDF[0,]
     clearAllMarkers()
   })
   
