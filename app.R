@@ -30,23 +30,156 @@ library(pool)
 library(png)
 library(leaflet.mapboxgl)
 
-if (Sys.info()['sysname'] != "Windows") {
-  options(shiny.host = '125.95.204.84')
-  options(shiny.port = 8100)
+# AWS EC2 specific
+# Get the ip address of the local instance
+options(shiny.host = as.character(system("wget -qO- http://instance-data/latest/meta-data/local-ipv4", intern = TRUE)))
+options(shiny.port = 8100)
+
+
+setup = function() {
+  database = function() {
+    main_con <- pool::dbPool(
+      RPostgres::Postgres(),
+      host = Sys.getenv("MAIN_HOST"),
+      dbname = Sys.getenv("MAIN_DB"),
+      user = Sys.getenv("MAIN_USER"),
+      password = Sys.getenv("MAIN_PWD"),
+      port = Sys.getenv("MAIN_PORT")
+    )
+    
+    return (main_con)
+  }
+  main_con = database()
+  map_data = create_map_layers(main_con)
+  return(list('main_con' = main_con, 'map_data' = map_data))
 }
 
-main_con <- pool::dbPool(
-  RPostgres::Postgres(),
-  host = Sys.getenv("MAIN_HOST"),
-  dbname = Sys.getenv("MAIN_DB"),
-  user = Sys.getenv("MAIN_USER"),
-  password = Sys.getenv("MAIN_PWD"),
-  port = Sys.getenv("MAIN_PORT")
-)
+populate_charging_stations = function(main_con) {
+  bevses_db <- main_con %>% dplyr::tbl("built_evse")
+  
+  evse_dcfc <-
+    bevses_db %>% dplyr::select(dcfc_count,
+                                latitude,
+                                longitude,
+                                bevse_id,
+                                connector_code) %>% dplyr::filter(dcfc_count > 0) %>% collect()
+  
+  last_updated_date <-
+    main_con %>% DBI::dbGetQuery("select last_updated from table_stats where table_name = 'built_evse';")
+  
+  all_chargers_combo <-
+    evse_dcfc[evse_dcfc$connector_code == 2 |
+                evse_dcfc$connector_code == 3,]
+  
+  all_chargers_chademo <-
+    evse_dcfc[evse_dcfc$connector_code == 1 |
+                evse_dcfc$connector_code == 3,]
+  
+  return (list(
+    'evse_dcfc' = evse_dcfc,
+    'last_updated_date' = last_updated_date,
+    'all_chargers_combo' = all_chargers_combo,
+    'all_chargers_chademo' = all_chargers_chademo
+  ))
+}
 
-#####
-# evse_dcfc <- read.csv("data/evse_locations/WA_EVSE_DCFCSC.csv")
-#####
+create_map_layers = function(main_con) {
+  cs_data = populate_charging_stations(main_con)
+  
+  overlay_names <-
+    c("Buffer", "Combo", "CHAdeMO")
+  
+  base_layers <- c("Combo", "CHAdeMO")
+  base_tile_layers <- c("MapBox Light", "OSM (default)")
+  
+  combo_icons <-
+    icons(
+      iconUrl = "https://upload.wikimedia.org/wikipedia/commons/7/7d/Symbol_electric_vehicle_charging_stations.jpg",
+      iconWidth = 10,
+      iconHeight = 10,
+      iconAnchorX = 0,
+      iconAnchorY = 0
+    )
+  # Read the RDS files
+  shape_trip_feasibility_chademo <-
+    readRDS("data/shape_trip_feasibility_chademo.Rds")
+  shape_trip_feasibility_combo <-
+    readRDS("data/shape_trip_feasibility_combo.Rds")
+  buf_merged <- readRDS("data/buf_merged.Rds")
+  buf_critical_ll <- readRDS("data/buf_critical_ll.Rds")
+  # browser()
+  wa_map <-
+    leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
+    setMaxBounds(-124.8361, 45.5437,-116.9174, 49.0024) %>%
+    addMapboxGL(style = "mapbox://styles/mapbox/streets-v11")  %>%
+    # Base groups
+    addPolylines(
+      data = shape_trip_feasibility_combo,
+      weight = shape_trip_feasibility_combo$trip_count / 20000,
+      color = "#475DCC",
+      group = overlay_names[2],
+      opacity = 1,
+      label = paste0("trip_count : ",
+                     shape_trip_feasibility_combo$trip_count),
+      popup = paste0("trip_count : ",
+                     shape_trip_feasibility_combo$trip_count)
+    ) %>%
+    addPolylines(
+      data = shape_trip_feasibility_chademo,
+      weight = shape_trip_feasibility_chademo$trip_count / 20000,
+      color = "#F23D3D",
+      group = overlay_names[3],
+      opacity = 1,
+      label = paste0("trip_count : ",
+                     shape_trip_feasibility_chademo$trip_count),
+      popup = paste0("trip_count : ",
+                     shape_trip_feasibility_chademo$trip_count)
+    ) %>%
+    addMarkers(
+      lng = cs_data$all_chargers_combo$longitude ,
+      lat = cs_data$all_chargers_combo$latitude,
+      popup = paste0("ID : ", cs_data$all_chargers_combo$bevse_id),
+      label = paste0("ID : ", cs_data$all_chargers_combo$bevse_id),
+      icon = combo_icons,
+      group = overlay_names[2]
+    )  %>%
+    addMarkers(
+      lng = cs_data$all_chargers_chademo$longitude ,
+      lat = cs_data$all_chargers_chademo$latitude,
+      popup = paste0("ID : ", cs_data$all_chargers_chademo$bevse_id),
+      label = paste0("ID : ", cs_data$all_chargers_chademo$bevse_id),
+      icon = combo_icons,
+      group = overlay_names[3]
+    ) %>%
+    addPolygons(
+      data = buf_merged ,
+      color = "#808080",
+      group = overlay_names[1],
+      opacity = 0.5
+    ) %>%
+    addLayersControl(overlayGroups = overlay_names,
+                     options = layersControlOptions(collapsed = FALSE)) %>%
+    addResetMapButton() %>%
+    addSearchOSM()
+  
+  return (
+    list(
+      'cs_data' = cs_data,
+      'overlay_names' = overlay_names,
+      'base_layers' = base_layers,
+      'base_tile_layers' = base_tile_layers,
+      'combo_icons' = combo_icons,
+      'shape_trip_feasibility_chademo' = shape_trip_feasibility_chademo,
+      'shape_trip_feasibility_combo' = shape_trip_feasibility_combo,
+      'buf_merged' = buf_merged,
+      'buf_critical_ll' = buf_critical_ll,
+      'wa_map' = wa_map
+    )
+  )
+  
+}
+
+setup_data = setup()
 
 # # Read the EVSE information through the AFDC API
 # afdc_url  <-
@@ -56,10 +189,10 @@ main_con <- pool::dbPool(
 #   )
 # evse_dcfc <- read_csv(afdc_url)
 # # TODO: Add a fallback clause in the case the API is non-responsive
-# 
+#
 # evse_dcfc$EV_Connector_Code <- 0
 # evse_dcfc$ChargingCost <- 0
-# 
+#
 # # Convert the connector type to code for easy parsing in GAMA
 # # CHADEMO only - 1
 # # J1772COMBO only - 2
@@ -83,107 +216,13 @@ main_con <- pool::dbPool(
 
 
 # bevses_db <- dplyr::tbl(main_con, "built_evse")
-bevses_db <- main_con %>% dplyr::tbl("built_evse")
 
-evse_dcfc <-
-  bevses_db %>% dplyr::select(
-    dcfc_count,
-    latitude,
-    longitude,
-    bevse_id,
-    connector_code
-  ) %>% dplyr::filter(dcfc_count > 0) %>% collect()
-
-last_updated_date <- main_con %>% DBI::dbGetQuery("select last_updated from table_stats where table_name = 'built_evse';")
-
-all_chargers_combo <-
-  evse_dcfc[evse_dcfc$connector_code == 2 |
-              evse_dcfc$connector_code == 3, ]
-
-all_chargers_chademo <-
-  evse_dcfc[evse_dcfc$connector_code == 1 |
-              evse_dcfc$connector_code == 3, ]
-
-overlay_names <-
-  c("Buffer", "Combo", "CHAdeMO")
-
-base_layers <- c("Combo", "CHAdeMO")
-base_tile_layers <- c("MapBox Light", "OSM (default)")
-
-combo_icons <-
-  icons(
-    iconUrl = "https://upload.wikimedia.org/wikipedia/commons/7/7d/Symbol_electric_vehicle_charging_stations.jpg",
-    iconWidth = 10,
-    iconHeight = 10,
-    iconAnchorX = 0,
-    iconAnchorY = 0
-  )
-# Read the RDS files
-shape_trip_feasibility_chademo <-
-  readRDS("data/shape_trip_feasibility_chademo.Rds")
-shape_trip_feasibility_combo <-
-  readRDS("data/shape_trip_feasibility_combo.Rds")
-buf_merged <- readRDS("data/buf_merged.Rds")
-
-wa_map <- leaflet(options = leafletOptions(preferCanvas = TRUE)) %>%
-  setMaxBounds(-124.8361, 45.5437, -116.9174, 49.0024) %>%
-  addMapboxGL(style = "mapbox://styles/mapbox/streets-v11")  %>%
-  # Base groups
-addPolylines(
-  data = shape_trip_feasibility_combo,
-  weight = shape_trip_feasibility_combo$trip_count / 20000,
-  color = "#475DCC",
-  group = overlay_names[2],
-  opacity = 1,
-  label = paste0("trip_count : ",
-                 shape_trip_feasibility_combo$trip_count),
-  popup = paste0("trip_count : ",
-                 shape_trip_feasibility_combo$trip_count)
-) %>%
-addPolylines(
-  data = shape_trip_feasibility_chademo,
-  weight = shape_trip_feasibility_chademo$trip_count / 20000,
-  color = "#F23D3D",
-  group = overlay_names[3],
-  opacity = 1,
-  label = paste0("trip_count : ",
-                 shape_trip_feasibility_chademo$trip_count),
-  popup = paste0("trip_count : ",
-                 shape_trip_feasibility_chademo$trip_count)
-) %>%
-addMarkers(
-  lng = all_chargers_combo$longitude ,
-  lat = all_chargers_combo$latitude,
-  popup = paste0("ID : ", all_chargers_combo$bevse_id),
-  label = paste0("ID : ", all_chargers_combo$bevse_id),
-  icon = combo_icons,
-  group = overlay_names[2]
-)  %>%
-  addMarkers(
-    lng = all_chargers_chademo$longitude ,
-    lat = all_chargers_chademo$latitude,
-    popup = paste0("ID : ", all_chargers_chademo$bevse_id),
-    label = paste0("ID : ", all_chargers_chademo$bevse_id),
-    icon = combo_icons,
-    group = overlay_names[3]
-  ) %>%
-  addPolygons(
-    data = buf_merged ,
-    color = "#808080",
-    group = overlay_names[1],
-    opacity = 0.5
-  ) %>%
-  addLayersControl(
-    overlayGroups = overlay_names,
-    options = layersControlOptions(collapsed = FALSE)
-  ) %>%
-  addResetMapButton() %>%
-  addSearchOSM()
+# 
 
 ###################
-### UI ###########
+### ui ###########
 ####################
-
+# browser()
 ui <- bs4DashPage(
   navbar = bs4DashNavbar(
     skin = "light",
@@ -230,7 +269,7 @@ ui <- bs4DashPage(
                  column(
                    width = 9,
                    bs4Card(
-                     title = paste0("Washington State DCFC Network (last updated: ",last_updated_date,")"),
+                     title = paste0("Washington State DCFC Network (last updated: ",setup_data$map_data$cs_data$last_updated_date,")"),
                      closable = FALSE,
                      status = "primary",
                      collapsible = TRUE,
@@ -392,7 +431,7 @@ server <- function(input, output, session) {
     clearAllMarkers()
   })
   
-  output$wa_road_map <- renderLeaflet(wa_map)
+  output$wa_road_map <- renderLeaflet(setup_data$map_data$wa_map)
   
   observeEvent(input$wa_road_map_click, {
     # print("map clicked")
@@ -413,7 +452,7 @@ server <- function(input, output, session) {
     sp_start <- SpatialPoints(cbind(clng, clat),
                               proj4string = CRS("+proj=longlat +datum=WGS84 +no_defs"))
     
-    buffer_road <- over(sp_start, buf_critical_ll)
+    buffer_road <- over(sp_start, setup_data$map_data$buf_critical_ll)
     
     if (!is.na(buffer_road$trip_count)) {
       # print("The point is within buffer")
@@ -427,7 +466,7 @@ server <- function(input, output, session) {
           fluidRow(
             column(
               4, h5(paste0("Site ID: ", rvData$siteID), style = "text-align: center;")
-              ),
+            ),
             column(
               2,
               dropdownButton(
@@ -437,8 +476,8 @@ server <- function(input, output, session) {
                   column(
                     12,
                     prettyRadioButtons(paste0("dcfc_plug_type", rvData$siteID), label = "Type of DCFC plug",
-                                          choices = list("CHAdeMO only" = 1, "COMBO only" = 2, "Both CHAdeMO and COMBO" = 3), 
-                                          selected = 3, inline = TRUE)
+                                       choices = list("CHAdeMO only" = 1, "COMBO only" = 2, "Both CHAdeMO and COMBO" = 3), 
+                                       selected = 3, inline = TRUE)
                   )
                 ),
                 hr(),
@@ -466,70 +505,70 @@ server <- function(input, output, session) {
                   column(
                     3,
                     wellPanel(
-                     column(
-                       12,
-                       sliderInput(
-                         inputId = paste0("fixed_charging_price_slider", rvData$siteID),
-                         label = 'Fixed Charging Price ($)',
-                         value = 0.5,
-                         min = 0,
-                         max = 10,
-                         step = 0.1
-                       )
-                     ),
-                     column(
-                       12,
-                       selectInput(
-                         inputId = paste0("dd_var_charging_unit", rvData$siteID),
-                         choices = c("min", "kWh"),
-                         label = "Unit"
-                       )
-                     ),
-                     column(
-                       12,
-                       sliderInput(
-                         inputId = paste0("var_charging_price_slider", rvData$siteID),
-                         label = 'Variable Charging Price ($)',
-                         value = 0.5,
-                         min = 0,
-                         max = 10,
-                         step = 0.1
-                       )
-                     )
+                      column(
+                        12,
+                        sliderInput(
+                          inputId = paste0("fixed_charging_price_slider", rvData$siteID),
+                          label = 'Fixed Charging Price ($)',
+                          value = 0.5,
+                          min = 0,
+                          max = 10,
+                          step = 0.1
+                        )
+                      ),
+                      column(
+                        12,
+                        selectInput(
+                          inputId = paste0("dd_var_charging_unit", rvData$siteID),
+                          choices = c("min", "kWh"),
+                          label = "Unit"
+                        )
+                      ),
+                      column(
+                        12,
+                        sliderInput(
+                          inputId = paste0("var_charging_price_slider", rvData$siteID),
+                          label = 'Variable Charging Price ($)',
+                          value = 0.5,
+                          min = 0,
+                          max = 10,
+                          step = 0.1
+                        )
+                      )
                     )
                   ),
                   column(
                     3,
                     wellPanel(
                       column(
-                         12,
-                         sliderInput(
-                           inputId = paste0("fixed_parking_price_slider", rvData$siteID),
-                           label = 'Fixed Parking Price ($)',
-                           value = 0.5,
-                           min = 0,
-                           max = 10,
-                           step = 0.1
-                         ),
-                         column(
-                           12,
-                           selectInput(
-                             inputId = paste0("dd_var_parking_unit", rvData$siteID),
-                             choices = c("min"),
-                             label = "Unit"
-                           )
-                         ),
-                         column(
-                           12,
-                           sliderInput(
-                             inputId = paste0("var_parking_price_slider", rvData$siteID),
-                             label = 'Variable Parking Price ($)',
-                             value = 0.5,
-                             min = 0,
-                             max = 10,
-                             step = 0.1
-                           )
-                         )
+                        12,
+                        sliderInput(
+                          inputId = paste0("fixed_parking_price_slider", rvData$siteID),
+                          label = 'Fixed Parking Price ($)',
+                          value = 0.5,
+                          min = 0,
+                          max = 10,
+                          step = 0.1
+                        ),
+                        column(
+                          12,
+                          selectInput(
+                            inputId = paste0("dd_var_parking_unit", rvData$siteID),
+                            choices = c("min"),
+                            label = "Unit"
+                          )
+                        ),
+                        column(
+                          12,
+                          sliderInput(
+                            inputId = paste0("var_parking_price_slider", rvData$siteID),
+                            label = 'Variable Parking Price ($)',
+                            value = 0.5,
+                            min = 0,
+                            max = 10,
+                            step = 0.1
+                          )
+                        )
                       )
                     )
                   )
@@ -559,71 +598,71 @@ server <- function(input, output, session) {
                   column(
                     3,
                     wellPanel(
-                     column(
-                       12,
-                       sliderInput(
-                         inputId = paste0("level2_fixed_charging_price_slider", rvData$siteID),
-                         label = 'Fixed Charging Price ($)',
-                         value = 0.5,
-                         min = 0,
-                         max = 10,
-                         step = 0.1
-                       )
-                     ),
-                     column(
-                       12,
-                       selectInput(
-                         inputId = paste0("dd_level2_var_charging_unit", rvData$siteID),
-                         choices = c("min", "kWh", "fixed"),
-                         label = "Unit"
-                       )
-                     ),
-                     column(
-                       12,
-                       sliderInput(
-                         inputId = paste0("level2_var_charging_price_slider", rvData$siteID),
-                         label = 'Variable Charging Price ($)',
-                         value = 0.5,
-                         min = 0,
-                         max = 10,
-                         step = 0.1
-                       )
-                     )
+                      column(
+                        12,
+                        sliderInput(
+                          inputId = paste0("level2_fixed_charging_price_slider", rvData$siteID),
+                          label = 'Fixed Charging Price ($)',
+                          value = 0.5,
+                          min = 0,
+                          max = 10,
+                          step = 0.1
+                        )
+                      ),
+                      column(
+                        12,
+                        selectInput(
+                          inputId = paste0("dd_level2_var_charging_unit", rvData$siteID),
+                          choices = c("min", "kWh", "fixed"),
+                          label = "Unit"
+                        )
+                      ),
+                      column(
+                        12,
+                        sliderInput(
+                          inputId = paste0("level2_var_charging_price_slider", rvData$siteID),
+                          label = 'Variable Charging Price ($)',
+                          value = 0.5,
+                          min = 0,
+                          max = 10,
+                          step = 0.1
+                        )
+                      )
                     )
                   ),
                   column(
                     3,
                     wellPanel(
-                     column(
-                       12,
-                       sliderInput(
-                         inputId = paste0("level2_fixed_parking_price_slider", rvData$siteID),
-                         label = 'Parking Price ($)',
-                         value = 0.5,
-                         min = 0,
-                         max = 10,
-                         step = 0.1
-                       )
-                     ),
-                     column(
-                       12,
-                       selectInput(
-                         inputId = paste0("dd_level2_var_parking_unit", rvData$siteID),
-                         choices = c("min", "hour", "fixed"),
-                         label = "Unit"
-                       )
-                     ),
-                     column(
-                       12,
-                       sliderInput(
-                         inputId = paste0("level2_var_parking_price_slider", rvData$siteID),
-                         label = 'Variable Parking Price ($)',
-                         value = 0.5,
-                         min = 0,
-                         max = 10,
-                         step = 0.1
-                       )
-                     )
+                      column(
+                        12,
+                        sliderInput(
+                          inputId = paste0("level2_fixed_parking_price_slider", rvData$siteID),
+                          label = 'Parking Price ($)',
+                          value = 0.5,
+                          min = 0,
+                          max = 10,
+                          step = 0.1
+                        )
+                      ),
+                      column(
+                        12,
+                        selectInput(
+                          inputId = paste0("dd_level2_var_parking_unit", rvData$siteID),
+                          choices = c("min", "hour", "fixed"),
+                          label = "Unit"
+                        )
+                      ),
+                      column(
+                        12,
+                        sliderInput(
+                          inputId = paste0("level2_var_parking_price_slider", rvData$siteID),
+                          label = 'Variable Parking Price ($)',
+                          value = 0.5,
+                          min = 0,
+                          max = 10,
+                          step = 0.1
+                        )
+                      )
                     )
                   )
                 ),
@@ -780,7 +819,7 @@ server <- function(input, output, session) {
     }
     
     DBI::dbWriteTable(
-      main_con,
+      setup_data$main_con,
       "analysis_record",
       data.frame(
         "user_id" = auth0_userid,
@@ -792,7 +831,7 @@ server <- function(input, output, session) {
     )
     
     DBI::dbGetQuery(
-      main_con,
+      setup_data$main_con,
       paste0(
         "insert into user_details (user_id, user_name, email_id, last_submit_date) values ('",
         auth0_userid,
@@ -808,7 +847,7 @@ server <- function(input, output, session) {
     # Get the analysis_id from the just inserted record
     a_id <-
       DBI::dbGetQuery(
-        main_con,
+        setup_data$main_con,
         paste0(
           "select analysis_id from analysis_record where  sim_date_time =  '",
           as.character(dt_submit),
@@ -818,7 +857,7 @@ server <- function(input, output, session) {
         )
       )$analysis_id
     rvData$siteDetailsDF$analysis_id <- a_id
-    DBI::dbWriteTable(main_con, "new_evses", rvData$siteDetailsDF, append = TRUE)
+    DBI::dbWriteTable(setup_data$main_con, "new_evses", rvData$siteDetailsDF, append = TRUE)
     
     for (i in 1:nrow(rvData$siteDetailsDF)) {
       removeUI(selector = paste0("#", rvData$siteDetailsDF$input_evse_id[i]))
