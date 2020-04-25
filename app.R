@@ -32,9 +32,9 @@ library(leaflet.mapboxgl)
 
 # AWS EC2 specific
 # Get the ip address of the local instance
-options(shiny.host = as.character(system("wget -qO- http://instance-data/latest/meta-data/local-ipv4", intern = TRUE)))
+# options(shiny.host = as.character(system("wget -qO- http://instance-data/latest/meta-data/local-ipv4", intern = TRUE)))
 options(shiny.port = 8100)
-
+options(mapbox.accessToken = "pk.eyJ1IjoiY2hpbnRhbnAiLCJhIjoiY2ppYXU1anVuMThqazNwcDB2cGtneDdkYyJ9.TL6RTyRRFCbvJWyFa4P0Ow" )
 
 setup = function() {
   database = function() {
