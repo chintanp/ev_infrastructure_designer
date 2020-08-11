@@ -1,2 +1,0 @@
-h <- "Hello"
-print(h)
