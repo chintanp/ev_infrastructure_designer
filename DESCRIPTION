@@ -1,0 +1,38 @@
+Package: evides
+Title: The EV Infrastructure Designer
+Version: 0.0.0.9000
+Authors@R: person('Chintan', 'Pathak', email = 'cp84@uw.edu', role = c('cre', 'aut'))
+Description: This shiny app allows for placement and configuration of new electric vehicle charging stations in WA.
+License: MIT + file LICENSE
+Imports: 
+    config,
+    golem,
+    shiny,
+    processx,
+    attempt,
+    DT,
+    glue,
+    htmltools,
+    shinyWidgets,
+    leaflet,
+    dplyr,
+    shinycssloaders,
+    sp,
+    rgdal,
+    auth0,
+    bs4Dash,
+    leaflet.extras,
+    sf,
+    DBI,
+    RPostgres,
+    pool,
+    leaflet.mapboxgl
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.1.1
+Suggests: 
+    testthat,
+    spelling
+Language: en-US
+Depends: 
+    R (>= 2.10)
