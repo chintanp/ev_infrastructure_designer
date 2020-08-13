@@ -11,11 +11,12 @@ run_app <- function(onStart = NULL,
                     enableBookmarking = NULL,
                     ...) {
   with_golem_options(
-    app = shinyApp(ui = app_ui,
+    app = auth0::shinyAppAuth0(ui = app_ui(),
                    server = app_server,
                    onStart = onStart,
                    options = options, 
-                   enableBookmarking = enableBookmarking), 
+                   enableBookmarking = enableBookmarking, 
+                   config_file = system.file("app/_auth0.yml", package = "evides")), 
     golem_opts = list(...)
   )
 }

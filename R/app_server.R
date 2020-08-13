@@ -9,5 +9,6 @@ app_server <- function(input, output, session) {
   # GlobalData contains the globals and
   # these need to be passed to the modules in need
   GlobalData = callModule(GlobalModule, "globals")
-  callModule(mod_mapdes_server, "mapdes_ui_1", GlobalData)
+  mapData <- callModule(mod_mapdes_server, "mapdes_ui_1", GlobalData)
+  callModule(mod_config_server, "config_ui_1", GlobalData, mapData)
 }

@@ -42,3 +42,4 @@ gama/
 _auth0.yml
 .Rproj.user
 logs/
+inst/app/_auth0.yml

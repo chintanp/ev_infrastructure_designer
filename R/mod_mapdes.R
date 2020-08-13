@@ -20,9 +20,10 @@ mod_mapdes_ui <- function(id) {
       elevation = 4,
       width = NULL,
       solidHeader = TRUE,
-      dropdownIcon = "question-circle",
       dropdownMenu = bs4Dash::dropdownItemList(
-        bs4Dash::dropdownItem(url = "https://evi-dss.readthedocs.io/en/latest/evi_des.html#washington-ev-dcfc-system", name = "Read about the overlay in the docs")
+        bs4Dash::dropdownItem(name = "Click on the map - within the buffer - to place a charging station"),
+        bs4Dash::dropdownItem(url = "https://evi-dss.readthedocs.io/en/latest/evi_des.html#washington-ev-dcfc-system", name = "Read about the overlay in the docs"), 
+        icon = "question-circle"
       ),
       maximizable = TRUE,
       shinycssloaders::withSpinner(
@@ -40,6 +41,15 @@ mod_mapdes_ui <- function(id) {
 mod_mapdes_server <- function(input, output, session, globals) {
   ns <- session$ns
   
+  new_icon <-
+    leaflet::makeAwesomeIcon(icon = "plus-square",
+                             library = "fa",
+                             markerColor = "purple", 
+                             iconColor = "white")
+  
+  rvData <- reactiveValues(siteID = 0, 
+                           siteIDs = c())
+  
   output$map_card_title <- renderText({
     pool <- globals$stash$pool
     
@@ -51,6 +61,7 @@ mod_mapdes_server <- function(input, output, session, globals) {
            ")")
   })
   
+  # Map rendering --------------------------- 
   output$wa_road_map <- leaflet::renderLeaflet({
     pool <- globals$stash$pool
     bevses_db <- pool %>% dplyr::tbl("built_evse")
@@ -64,11 +75,11 @@ mod_mapdes_server <- function(input, output, session, globals) {
     
     all_chargers_combo <-
       evse_dcfc[evse_dcfc$connector_code == 2 |
-                  evse_dcfc$connector_code == 3,]
+                  evse_dcfc$connector_code == 3, ]
     
     all_chargers_chademo <-
       evse_dcfc[evse_dcfc$connector_code == 1 |
-                  evse_dcfc$connector_code == 3,]
+                  evse_dcfc$connector_code == 3, ]
     
     overlay_names <-
       c("Buffer", "Combo", "CHAdeMO")
@@ -85,42 +96,42 @@ mod_mapdes_server <- function(input, output, session, globals) {
       leaflet::makeAwesomeIcon(icon = "charging-station",
                                library = "fa",
                                iconColor = "#F23D3D")
-    
+
     wa_map <-
       leaflet::leaflet(options = leaflet::leafletOptions(preferCanvas = TRUE)) %>%
-      leaflet::setMaxBounds(-124.8361, 45.5437,-116.9174, 49.0024) %>%
+      leaflet::setMaxBounds(-124.8361, 45.5437, -116.9174, 49.0024) %>%
       leaflet.mapboxgl::addMapboxGL(
         style = "mapbox://styles/mapbox/streets-v11",
         accessToken = Sys.getenv("MAPBOX_ACCESS_TOKEN"),
         setView = FALSE
       )  %>%
       # Base groups
-      leaflet::addPolylines(
-        data = shape_trip_feasibility_combo,
-        weight = shape_trip_feasibility_combo$trip_count / 20000,
-        color = "#475DCC",
-        group = overlay_names[2],
-        opacity = 1,
-        label = paste0("trip_count : ",
-                       shape_trip_feasibility_combo$trip_count),
-        popup = paste0("trip_count : ",
-                       shape_trip_feasibility_combo$trip_count)
-      ) %>%
-      leaflet::addPolylines(
-        data = shape_trip_feasibility_chademo,
-        weight = shape_trip_feasibility_chademo$trip_count / 20000,
-        color = "#F23D3D",
-        group = overlay_names[3],
-        opacity = 1,
-        label = paste0(
-          "trip_count : ",
-          shape_trip_feasibility_chademo$trip_count
-        ),
-        popup = paste0(
-          "trip_count : ",
-          shape_trip_feasibility_chademo$trip_count
-        )
-      ) %>%
+      # leaflet::addPolylines(
+      #   data = shape_trip_feasibility_combo,
+      #   weight = shape_trip_feasibility_combo$trip_count / 20000,
+      #   color = "#475DCC",
+      #   group = overlay_names[2],
+      #   opacity = 1,
+      #   label = paste0("trip_count : ",
+      #                  shape_trip_feasibility_combo$trip_count),
+      #   popup = paste0("trip_count : ",
+      #                  shape_trip_feasibility_combo$trip_count)
+      # ) %>%
+      # leaflet::addPolylines(
+      #   data = shape_trip_feasibility_chademo,
+      #   weight = shape_trip_feasibility_chademo$trip_count / 20000,
+      #   color = "#F23D3D",
+      #   group = overlay_names[3],
+      #   opacity = 1,
+      #   label = paste0(
+      #     "trip_count : ",
+      #     shape_trip_feasibility_chademo$trip_count
+      #   ),
+      #   popup = paste0(
+      #     "trip_count : ",
+      #     shape_trip_feasibility_chademo$trip_count
+      #   )
+      # ) %>%
       leaflet::addAwesomeMarkers(
         lng = all_chargers_combo$longitude ,
         lat = all_chargers_combo$latitude,
@@ -153,6 +164,7 @@ mod_mapdes_server <- function(input, output, session, globals) {
       leaflet.extras::addSearchOSM()
   })
   
+  # Map click event handling ---------------- 
   observeEvent(input$wa_road_map_click, {
     
     click <- input$wa_road_map_click
@@ -162,17 +174,52 @@ mod_mapdes_server <- function(input, output, session, globals) {
     clng <- click$lng
     
     # Convert the lat,long to Spatial point
-    sp_start <- sp::SpatialPoints(cbind(clng, clat),
-                              sp::proj4string = sp::CRS("+proj=longlat +datum=WGS84 +no_defs"))
+    sp_start <- sp::SpatialPoints(
+      cbind(clng, clat),
+      proj4string = sp::CRS(
+        "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84
++towgs84=0,0,0"
+      )
+    )
     
     buffer_road <- sp::over(sp_start, buf_critical_ll)
     
+    # Only add a marker to the map if it is within the buffer region
     if (!is.na(buffer_road$trip_count)) {
+      rvData$siteID <-  rvData$siteID + 1
+      rvData$siteIDs <- c(rvData$siteIDs, rvData$siteID)
       
+      leaflet::leafletProxy(mapId = "wa_road_map") %>%
+        leaflet::addAwesomeMarkers(
+          lat = clat,
+          lng = clng,
+          label = paste0(
+            "SiteID:",
+            rvData$siteID,
+            " @ ",
+            signif(clat, digits = 5),
+            ", ",
+            signif(clng, digits = 5)
+          ),
+          labelOptions = leaflet::labelOptions(noHide = T),
+          group = "overlay",
+          icon = new_icon,
+          layerId = as.character(rvData$siteID)
+        )
+      
+      
+      # leaflet::leafletProxy(mapId = "wa_road_map") %>%
+      #   leaflet::removeMarker(layerId = as.character(rvData$siteID - 1))
       
     }
     
   })
+  
+  # Return values ------------- 
+  return (
+    list ("rvData" = rvData, 
+          "mapProxy" = leaflet::leafletProxy(mapId = "wa_road_map"))
+  )
 }
 
 ## To be copied in the UI
