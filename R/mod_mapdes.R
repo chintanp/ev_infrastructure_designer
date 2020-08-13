@@ -48,7 +48,9 @@ mod_mapdes_server <- function(input, output, session, globals) {
                              iconColor = "white")
   
   rvData <- reactiveValues(siteID = 0, 
-                           siteIDs = c())
+                           siteIDs = c(), 
+                           click = NULL, 
+                           bufferRoad = NULL)
   
   output$map_card_title <- renderText({
     pool <- globals$stash$pool
@@ -167,11 +169,11 @@ mod_mapdes_server <- function(input, output, session, globals) {
   # Map click event handling ---------------- 
   observeEvent(input$wa_road_map_click, {
     
-    click <- input$wa_road_map_click
+    rvData$click <- input$wa_road_map_click
     
     # Get lat, long from map_click
-    clat <- click$lat
-    clng <- click$lng
+    clat <- rvData$click$lat
+    clng <- rvData$click$lng
     
     # Convert the lat,long to Spatial point
     sp_start <- sp::SpatialPoints(
@@ -182,10 +184,10 @@ mod_mapdes_server <- function(input, output, session, globals) {
       )
     )
     
-    buffer_road <- sp::over(sp_start, buf_critical_ll)
+    rvData$bufferRoad <- sp::over(sp_start, buf_critical_ll)
     
     # Only add a marker to the map if it is within the buffer region
-    if (!is.na(buffer_road$trip_count)) {
+    if (!is.na(rvData$bufferRoad$trip_count)) {
       rvData$siteID <-  rvData$siteID + 1
       rvData$siteIDs <- c(rvData$siteIDs, rvData$siteID)
       
@@ -206,13 +208,7 @@ mod_mapdes_server <- function(input, output, session, globals) {
           icon = new_icon,
           layerId = as.character(rvData$siteID)
         )
-      
-      
-      # leaflet::leafletProxy(mapId = "wa_road_map") %>%
-      #   leaflet::removeMarker(layerId = as.character(rvData$siteID - 1))
-      
     }
-    
   })
   
   # Return values ------------- 

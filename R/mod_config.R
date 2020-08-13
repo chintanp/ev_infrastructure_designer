@@ -64,10 +64,11 @@ mod_config_server <-
                      status = "success",
                      icon = icon("sliders"),
                      width = "900px",
-                     tooltip = "Click to configure site details !", #shinyWidgets::tooltipOptions(title = "Click to enter the site details !", placement = "left"), 
-                     right = TRUE, 
-                     up = FALSE, 
-                     margin = "10px", 
+                     tooltip = "Click to configure site details !",
+                     #shinyWidgets::tooltipOptions(title = "Click to enter the site details !", placement = "left"),
+                     right = TRUE,
+                     up = FALSE,
+                     margin = "10px",
                      size = "sm"
                    )
                  ),
@@ -107,7 +108,7 @@ mod_config_server <-
             id = "submitResetBtns",
             hr(),
             shinyWidgets::materialSwitch(
-              inputId = "tesla_toggle",
+              inputId = ns("tesla_toggle"),
               label = "Tesla",
               value = FALSE,
               status = "primary"
@@ -144,13 +145,15 @@ mod_config_server <-
       observeEvent(input[[paste0("removeBtn", site_id)]], {
         print("Button clicked")
         print(site_id)
-  
+        
         mapData$mapProxy %>%
           leaflet::removeMarker(layerId = as.character(site_id))
-
+        
         removeUI(selector = paste0("#siterow", site_id))
         # Remove the site_id from the siteIDs
-        mapData$rvData$siteIDs <- subset(mapData$rvData$siteIDs, !(mapData$rvData$siteIDs %in% site_id))
+        mapData$rvData$siteIDs <-
+          subset(mapData$rvData$siteIDs,
+                 !(mapData$rvData$siteIDs %in% site_id))
       })
     }
     
@@ -165,7 +168,7 @@ mod_config_server <-
         fluidRow(column(
           12,
           shinyWidgets::prettyRadioButtons(
-            paste0("dcfc_plug_type", site_id),
+            ns(paste0("dcfc_plug_type", site_id)),
             label = "Type of DCFC plug",
             choices = list(
               "CHAdeMO only" = 1,
@@ -373,9 +376,10 @@ mod_config_server <-
       resetNewStations()
       removeSubmitResetBtns()
     })
-
+    
     observeEvent(input$submit_btn, {
       browser()
+      dt_submit <- Sys.time()
       pool <- globals$stash$pool
       
       auth0_sub <- session$userData$auth0_info$sub
@@ -383,71 +387,92 @@ mod_config_server <-
         strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
       user_name <- session$userData$auth0_info$name
       user_email <- session$userData$auth0_info$email
-
+      
+      rest_new_evse_query <- ''
+      trans_values <- list()
+      
       for (site_id in mapData$rvData$siteIDs) {
-        
-        rvData$siteDetailsDF[i, 6:22] <-
-          c(
-            input[[paste0("dcfc_plug_type", site_id)]],
-            input[[paste0("dcfc_plug_count", site_id)]],
-            input[[paste0("dcfc_plug_power", site_id)]],
-            input[[paste0("fixed_charging_price_slider", site_id)]],
-            input[[paste0("dd_var_charging_unit", site_id)]],
-            input[[paste0("var_charging_price_slider", site_id)]],
-            input[[paste0("fixed_parking_price_slider", site_id)]],
-            input[[paste0("dd_var_parking_unit", site_id)]],
-            input[[paste0("var_parking_price_slider", site_id)]],
-            input[[paste0("level2_plug_count", site_id)]],
-            input[[paste0("level2_plug_power", site_id)]],
-            input[[paste0("level2_fixed_charging_price_slider", site_id)]],
-            input[[paste0("dd_level2_var_charging_unit", site_id)]],
-            input[[paste0("level2_var_charging_price_slider", site_id)]],
-            input[[paste0("level2_fixed_parking_price_slider", site_id)]],
-            input[[paste0("dd_level2_var_parking_unit", site_id)]],
-            input[[paste0("level2_var_parking_price_slider", site_id)]]
-          )
+        # siteDetailsDF[i, 6:22] <-
+        #   c(
+        #     input[[paste0("dcfc_plug_type", site_id)]],
+        #     input[[paste0("dcfc_plug_count", site_id)]],
+        #     input[[paste0("dcfc_plug_power", site_id)]],
+        #     input[[paste0("fixed_charging_price_slider", site_id)]],
+        #     input[[paste0("dd_var_charging_unit", site_id)]],
+        #     input[[paste0("var_charging_price_slider", site_id)]],
+        #     input[[paste0("fixed_parking_price_slider", site_id)]],
+        #     input[[paste0("dd_var_parking_unit", site_id)]],
+        #     input[[paste0("var_parking_price_slider", site_id)]],
+        #     input[[paste0("level2_plug_count", site_id)]],
+        #     input[[paste0("level2_plug_power", site_id)]],
+        #     input[[paste0("level2_fixed_charging_price_slider", site_id)]],
+        #     input[[paste0("dd_level2_var_charging_unit", site_id)]],
+        #     input[[paste0("level2_var_charging_price_slider", site_id)]],
+        #     input[[paste0("level2_fixed_parking_price_slider", site_id)]],
+        #     input[[paste0("dd_level2_var_parking_unit", site_id)]],
+        #     input[[paste0("level2_var_parking_price_slider", site_id)]]
+        #   )
+        # rest_new_evse_query <- glue::glue(rest_new_evse_query, '(?a_id, ?trip_count{site_id}, ?od_pairs{site_id}, ?lat{site_id}, ?lng{site_id}, 
+        #                                   ?dcfc_plug_cnt{site_id}, ?dcfc_power{site_id}, ?level2_plug_count{site_id}, ?level2_power{site_id}, 
+        #                         ?dcfc_fixed_charging_price{site_id}, ?dcfc_var_charging_price_unit{site_id}, 
+        #                         ?dcfc_var_charging_price{site_id}, ?dcfc_fixed_parking_price{site_id}, ?dcfc_var_parking_price_unit{site_id}, 
+        #                         ?dcfc_var_parking_price{site_id}, ?level2_fixed_charging_price{site_id}, ?level2_var_charging_price_unit{site_id}, 
+        #                         ?level2_var_charging_price{site_id}, ?level2_fixed_parking_price{site_id}, ?level2_var_parking_price_unit{site_id}, 
+        #                         ?level2_var_parking_price{site_id}, ?connector_code{site_id}), ') 
+        rest_new_evse_query <- glue::glue(rest_new_evse_query, '(lastval(), $1, $2, $3, $4, 
+                                          $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, 
+                                          $17, $18, $19, $20, $21), ') 
+        trans_values <- append(trans_values, c(mapData$rvData$bufferRoad$trip_count, mapData$rvData$bufferRoad$od_pairs, mapData$rvData$click$lat, mapData$rvData$click$lng, 
+                                               input[[paste0("dcfc_plug_count", site_id)]],
+                                               input[[paste0("dcfc_plug_power", site_id)]],
+                                               input[[paste0("level2_plug_count", site_id)]],
+                                               input[[paste0("level2_plug_power", site_id)]],                       
+                                               input[[paste0("fixed_charging_price_slider", site_id)]],
+                                               input[[paste0("dd_var_charging_unit", site_id)]],
+                                               input[[paste0("var_charging_price_slider", site_id)]],
+                                               input[[paste0("fixed_parking_price_slider", site_id)]],
+                                               input[[paste0("dd_var_parking_unit", site_id)]],
+                                               input[[paste0("var_parking_price_slider", site_id)]],    
+                                               input[[paste0("level2_fixed_charging_price_slider", site_id)]],
+                                               input[[paste0("dd_level2_var_charging_unit", site_id)]],
+                                               input[[paste0("level2_var_charging_price_slider", site_id)]],
+                                               input[[paste0("level2_fixed_parking_price_slider", site_id)]],
+                                               input[[paste0("dd_level2_var_parking_unit", site_id)]],
+                                               input[[paste0("level2_var_parking_price_slider", site_id)]], 
+                                               input[[paste0("dcfc_plug_type", site_id)]]))
       }
-      
-      pool %>% DBI::dbWriteTable(
-        "analysis_record",
-        data.frame(
-          "user_id" = auth0_userid,
-          "status" = "inserted",
-          "include_tesla" = input$tesla_toggle
-        ),
-        append = TRUE
-      )
-      
-      DBI::dbGetQuery(
-        setup_data$main_con,
-        paste0(
-          "insert into user_details (user_id, user_name, email_id, last_submit_date) values ('",
-          auth0_userid,
-          "', '",
-          user_name,
-          "', '",
-          user_email,
-          "', '",
-          as.character(dt_submit),
-          "' ) on conflict (user_id) do update set last_submit_date = EXCLUDED.last_submit_date"
+      # remove the last comma
+      rest_new_evse_query <- substr(rest_new_evse_query, 1, nchar(rest_new_evse_query) - 2)
+      new_evse_query <-
+        glue::glue(
+          "INSERT INTO new_evses (analysis_id, trip_count, od_pairs, latitude, longitude, 
+                                dcfc_plug_count, dcfc_power, level2_plug_count, level2_power, 
+                                dcfc_fixed_charging_price, dcfc_var_charging_price_unit, 
+                                dcfc_var_charging_price, dcfc_fixed_parking_price, dcfc_var_parking_price_unit, 
+                                dcfc_var_parking_price, level2_fixed_charging_price, level2_var_charging_price_unit, 
+                                level2_var_charging_price, level2_fixed_parking_price, level2_var_parking_price_unit, 
+                                level2_var_parking_price, connector_code) VALUES 
+          {rest_new_evse_query}"
         )
-      )
-      # Get the analysis_id from the just inserted record
-      a_id <-
-        DBI::dbGetQuery(
-          setup_data$main_con,
-          paste0(
-            "select analysis_id from analysis_record where  sim_date_time =  '",
-            as.character(dt_submit),
-            "' and user_id = '",
-            auth0_userid,
-            "'"
-          )
-        )$analysis_id
-      rvData$siteDetailsDF$analysis_id <- a_id
-      DBI::dbWriteTable(setup_data$main_con, "new_evses", rvData$siteDetailsDF, append = TRUE)
-      
-
+      trans_query <- ''
+      trans_query <- glue::glue("BEGIN;
+                                  INSERT INTO analysis_record (user_id, status, include_tesla) VALUES
+                                    ('{auth0_userid}', 'inserted', '{input$tesla_toggle}');
+                                {new_evse_query};  
+                                  INSERT INTO user_details (user_id, user_name, email_id) VALUES 
+                                    ('{auth0_userid}', '{user_name}', '{user_email}')
+                                    ON CONFLICT (user_id) DO UPDATE SET last_submit_date = NOW();
+                                COMMIT;")
+      print("query")
+      print(trans_query)
+      print("-----------------------------------------")
+      print("values")
+      print(trans_values)
+      conn <- pool::poolCheckout(pool);
+      trans_sendQuery <- DBI::dbSendQuery(conn, trans_query)
+      DBI::dbBind(trans_sendQuery, trans_values)
+      DBI::dbFetch(trans_sendQuery)
+      pool::poolReturn(conn)
       insertUI(selector = "#postSubmit",
                ui = tags$div(
                  id = "postSubmitText",
@@ -461,9 +486,9 @@ mod_config_server <-
                     analysis results are ready."
                    )
                  ),
-                 actionBttn(inputId = "postSubmitBtn", label = "Run another analysis")
+                 shinyWidgets::actionBttn(inputId = "postSubmitBtn", label = "Run another analysis")
                ))
-
+      
       resetNewStations()
     })
     
