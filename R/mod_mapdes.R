@@ -50,7 +50,31 @@ mod_mapdes_server <- function(input, output, session, globals) {
   rvData <- reactiveValues(siteID = 0, 
                            siteIDs = c(), 
                            click = NULL, 
-                           bufferRoad = NULL)
+                           siteDetailsDF = data.frame(
+                             trip_count = numeric(),
+                             od_pairs = character(),
+                             latitude = numeric(),
+                             longitude = numeric(),
+                             connector_code = integer(),
+                             dcfc_plug_count = integer(),
+                             dcfc_power = numeric(),
+                             dcfc_fixed_charging_price = numeric(),
+                             dcfc_var_charging_price_unit = character(),
+                             dcfc_var_charging_price = numeric(),
+                             dcfc_fixed_parking_price = numeric(),
+                             dcfc_var_parking_price_unit = character(),
+                             dcfc_var_parking_price = numeric(),
+                             level2_plug_count = integer(),
+                             level2_power = numeric(),
+                             level2_fixed_charging_price = numeric(),
+                             level2_var_charging_price_unit = character(),
+                             level2_var_charging_price = numeric(),
+                             level2_fixed_parking_price = numeric(),
+                             level2_var_parking_price_unit = character(),
+                             level2_var_parking_price = numeric(),
+                             analysis_id = integer(),
+                             stringsAsFactors = FALSE
+                           ))
   
   output$map_card_title <- renderText({
     pool <- globals$stash$pool
@@ -92,12 +116,16 @@ mod_mapdes_server <- function(input, output, session, globals) {
     combo_icon <-
       leaflet::makeAwesomeIcon(icon = "charging-station",
                                library = "fa",
-                               iconColor = "#475DCC")
+                               iconColor = "#475DCC", 
+                               markerColor = "white", 
+                               extraClasses = "")
     
     chademo_icon <-
       leaflet::makeAwesomeIcon(icon = "charging-station",
                                library = "fa",
-                               iconColor = "#F23D3D")
+                               iconColor = "#F23D3D", 
+                               markerColor = "white", 
+                               extraClasses = "")
 
     wa_map <-
       leaflet::leaflet(options = leaflet::leafletOptions(preferCanvas = TRUE)) %>%
@@ -184,10 +212,10 @@ mod_mapdes_server <- function(input, output, session, globals) {
       )
     )
     
-    rvData$bufferRoad <- sp::over(sp_start, buf_critical_ll)
+    buffer_road <- sp::over(sp_start, buf_critical_ll)
     
     # Only add a marker to the map if it is within the buffer region
-    if (!is.na(rvData$bufferRoad$trip_count)) {
+    if (!is.na(buffer_road$trip_count)) {
       rvData$siteID <-  rvData$siteID + 1
       rvData$siteIDs <- c(rvData$siteIDs, rvData$siteID)
       
@@ -208,6 +236,16 @@ mod_mapdes_server <- function(input, output, session, globals) {
           icon = new_icon,
           layerId = as.character(rvData$siteID)
         )
+      
+      rvData$siteDetailsDF[nrow(rvData$siteDetailsDF) + 1, 1:4] <-
+        c(
+          buffer_road$trip_count,
+          as.character(buffer_road$od_pairs),
+          clat,
+          clng
+        )
+      # Below jugglery to set the row names as siteID may not be needed
+      #rownames(rvData$siteDetailsDF)[rownames(rvData$siteDetailsDF) == as.character(nrow(rvData$siteDetailsDF))] <- rvData$siteID
     }
   })
   
