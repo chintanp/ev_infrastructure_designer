@@ -119,6 +119,10 @@ mod_mapdes_server <- function(input, output, session, globals) {
                                iconColor = "#475DCC", 
                                markerColor = "white", 
                                extraClasses = "")
+    combo_icon2 <-
+      leaflet::makeIcon(iconUrl = "www/combo_fa.svg", 
+                        iconWidth = "15.75", 
+                        iconHeight = "14")
     
     chademo_icon <-
       leaflet::makeAwesomeIcon(icon = "charging-station",
@@ -126,6 +130,10 @@ mod_mapdes_server <- function(input, output, session, globals) {
                                iconColor = "#F23D3D", 
                                markerColor = "white", 
                                extraClasses = "")
+    chademo_icon2 <-
+      leaflet::makeIcon(iconUrl = "www/chademo_fa.svg", 
+                        iconWidth = "15.75", 
+                        iconHeight = "14")
 
     wa_map <-
       leaflet::leaflet(options = leaflet::leafletOptions(preferCanvas = TRUE)) %>%
@@ -136,32 +144,32 @@ mod_mapdes_server <- function(input, output, session, globals) {
         setView = FALSE
       )  %>%
       # Base groups
-      # leaflet::addPolylines(
-      #   data = shape_trip_feasibility_combo,
-      #   weight = shape_trip_feasibility_combo$trip_count / 20000,
-      #   color = "#475DCC",
-      #   group = overlay_names[2],
-      #   opacity = 1,
-      #   label = paste0("trip_count : ",
-      #                  shape_trip_feasibility_combo$trip_count),
-      #   popup = paste0("trip_count : ",
-      #                  shape_trip_feasibility_combo$trip_count)
-      # ) %>%
-      # leaflet::addPolylines(
-      #   data = shape_trip_feasibility_chademo,
-      #   weight = shape_trip_feasibility_chademo$trip_count / 20000,
-      #   color = "#F23D3D",
-      #   group = overlay_names[3],
-      #   opacity = 1,
-      #   label = paste0(
-      #     "trip_count : ",
-      #     shape_trip_feasibility_chademo$trip_count
-      #   ),
-      #   popup = paste0(
-      #     "trip_count : ",
-      #     shape_trip_feasibility_chademo$trip_count
-      #   )
-      # ) %>%
+      leaflet::addPolylines(
+        data = shape_trip_feasibility_combo,
+        weight = shape_trip_feasibility_combo$trip_count / 20000,
+        color = "#475DCC",
+        group = overlay_names[2],
+        opacity = 1,
+        label = paste0("trip_count : ",
+                       shape_trip_feasibility_combo$trip_count),
+        popup = paste0("trip_count : ",
+                       shape_trip_feasibility_combo$trip_count)
+      ) %>%
+      leaflet::addPolylines(
+        data = shape_trip_feasibility_chademo,
+        weight = shape_trip_feasibility_chademo$trip_count / 20000,
+        color = "#F23D3D",
+        group = overlay_names[3],
+        opacity = 1,
+        label = paste0(
+          "trip_count : ",
+          shape_trip_feasibility_chademo$trip_count
+        ),
+        popup = paste0(
+          "trip_count : ",
+          shape_trip_feasibility_chademo$trip_count
+        )
+      ) %>%
       leaflet::addAwesomeMarkers(
         lng = all_chargers_combo$longitude ,
         lat = all_chargers_combo$latitude,
