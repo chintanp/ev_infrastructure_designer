@@ -151,6 +151,7 @@ mod_config_server <-
             )
           )
         )
+        shinyjs::disable(ns("tesla_toggle"))
       }
     })
     

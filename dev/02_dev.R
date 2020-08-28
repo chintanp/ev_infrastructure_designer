@@ -32,6 +32,7 @@ usethis::use_package( "RPostgres" )
 usethis::use_package( "pool" )
 usethis::use_package( "leaflet.mapboxgl" )
 usethis::use_package( "auth0" )
+usethis::use_package( "leafem" )
 
 ## Add modules ----
 ## Create a module infrastructure in R/

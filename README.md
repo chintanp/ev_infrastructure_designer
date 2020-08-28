@@ -1,7 +1,9 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# evides
+# EV Infrastructure Designer
+
+**Now golemized**
 
 <!-- badges: start -->
 
@@ -9,53 +11,34 @@
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://www.tidyverse.org/lifecycle/#experimental)
 <!-- badges: end -->
 
-The goal of evides is to …
-
-## Installation
-
-You can install the released version of evides from
-[CRAN](https://CRAN.R-project.org) with:
-
-``` r
-install.packages("evides")
-```
-
-And the development version from [GitHub](https://github.com/) with:
-
-``` r
-# install.packages("devtools")
-devtools::install_github("chintanp/ev_infrastructure_designer")
-```
-
-## Example
-
-This is a basic example which shows you how to solve a common problem:
+EV Infrastructure Designer lets users create custom charging station
+deployment scenarios by selecting the locations by clicking on the map,
+further configuring each individual charging station and then submitting
+the scenario for analysis.
 
 ``` r
 library(evides)
 ## basic example code
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+### Things to note about the package:
 
-``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
-```
+1.  Uses `golem` to generate a package from R Shiny code.
+    (<https://github.com/ThinkR-open/golem>)
+2.  Uses modules for effective code management.
+    (<https://shiny.rstudio.com/articles/modules.html>)
+3.  Validation of user inputs before insertion into database using
+    sqlInterpolate to avoid SQL injection attacks.
+    (<https://www.rdocumentation.org/packages/DBI/versions/0.5-1/topics/sqlInterpolate>)
+4.  Uses `bs4Dash` to get the husky colors and `shinyWidgets`
+    actionBttn. (<https://rinterface.github.io/bs4Dash/index.html>,
+    <https://github.com/dreamRs/shinyWidgets>)
+5.  Auth0 service for authentication.
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date.
+### Publicly hosted
 
-You can also embed plots, for example:
+Shinyapps: <https://cp84.shinyapps.io/evi_des/>
 
-<img src="man/figures/README-pressure-1.png" width="100%" />
-
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub\!
+Please note that the ‘evides’ project is released with a [Contributor
+Code of Conduct](CODE_OF_CONDUCT.md). By contributing to this project,
+you agree to abide by its terms.
