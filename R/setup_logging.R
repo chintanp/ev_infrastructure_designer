@@ -2,6 +2,8 @@
 #'
 #' Refer to: https://github.com/s-fleck/lgr/issues/29#issuecomment-558022635 #' for explanation
 #'
+#' @export
+#' 
 #' @param event The logging event that triggers the log creation.
 #' @param format_event Required for custom log format creation.
 #'

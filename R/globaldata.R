@@ -3,8 +3,8 @@ GlobalModule <- function(input, output, session) {
 
   # Setup logging -----------------
 
- # source('R/setup_logging.R')
-  pkgload::load_all("./R")
+  # source('R/setup_logging.R')
+  # pkgload::load_all("./")
   
   lg <-
     lgr::get_logger("test")$set_propagate(FALSE)$set_appenders(lgr::AppenderJson$new(layout = LayoutLogstash$new(), file = here::here(

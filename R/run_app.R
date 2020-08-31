@@ -7,7 +7,7 @@
 #' @importFrom shiny shinyApp
 #' @importFrom golem with_golem_options
 run_app <- function(onStart = NULL,
-                    options = list(port = 8100), 
+                    options = list(port = as.numeric(Sys.getenv("EVIDES_PORT"))), 
                     enableBookmarking = NULL,
                     ...) {
   with_golem_options(

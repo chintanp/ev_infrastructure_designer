@@ -6,7 +6,7 @@
 \usage{
 run_app(
   onStart = NULL,
-  options = list(port = 8100),
+  options = list(port = as.numeric(Sys.getenv("EVIDES_PORT"))),
   enableBookmarking = NULL,
   ...
 )
