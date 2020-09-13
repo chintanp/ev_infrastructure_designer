@@ -779,12 +779,23 @@ server <- function(input, output, session) {
   
   observeEvent(input$submitButton, {
     # ulid_submit <- ulid::ULIDgenerate()
+    print("In submit")
     dt_submit <- Sys.time()
+    print(ls(session$userData))
+    print(session$userData$auth0_info)
     auth0_sub <- session$userData$auth0_info$sub
+    print(auth0_sub)
+    # Give auth0_sub default value
+    if(is.null(auth0_sub)) {
+      auth0_sub <- "google-oauth2|116694976789141474362"
+    }
     auth0_userid <-
-      strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
+      strsplit(as.character(auth0_sub), "|", fixed = TRUE)[[1]][2]
     user_name <- session$userData$auth0_info$name
     user_email <- session$userData$auth0_info$email
+    if(is.null(user_email)) {
+      user_email <- "cp84@uw.edu"
+    }
     # if (!dir.exists("inputs")) {
     #   dir.create("inputs")
     # }
