@@ -46,7 +46,7 @@ app_ui <- function(request) {
                                       icon = "plus-circle")
         )
       ),
-      controlbar = bs4Dash::bs4DashControlbar(disable = TRUE),
+      controlbar = bs4Dash::bs4DashControlbar(skin = "light", tags$div(id = "userInfo")),
       footer = bs4Dash::bs4DashFooter(
         copyrights = a(
           href = "https://faculty.washington.edu/dwhm/",
