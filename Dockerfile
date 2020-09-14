@@ -43,4 +43,4 @@ RUN Rscript -e 'remotes::install_github("Thinkr-open/golem@8707ddea4e4121a92ca26
 RUN R -e 'remotes::install_local(upgrade="never")'
 # RUN rm -rf /build_zone
 EXPOSE 80
-CMD R -e "options('shiny.port'=80,shiny.host='0.0.0.0');evides::run_app()"
+CMD R -e "options('golem.app.prod' = TRUE, 'shiny.port'=80, shiny.host='0.0.0.0', auth0_config_file = here::here('inst', 'app', '_auth0.yml'));evides::run_app()"
