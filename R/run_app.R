@@ -16,7 +16,7 @@ run_app <- function(onStart = NULL,
                    onStart = onStart,
                    options = options, 
                    enableBookmarking = enableBookmarking, 
-                   config_file = system.file("app/_auth0.yml", package = "evides")), 
+                   config_file = here::here("inst", "app", "_auth0.yml")), 
     golem_opts = list(...)
   )
 }
