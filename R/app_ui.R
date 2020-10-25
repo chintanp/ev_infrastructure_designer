@@ -36,7 +36,7 @@ app_ui <- function(request) {
         title = "EVIDES",
         brandColor = "white",
         url = "",
-        src = "https://i.imgur.com/SeYKqiz.png",
+        src = "https://i.imgur.com/fFHHeq2.png",
         elevation = 4,
         opacity = 2.2,
         bs4Dash::bs4SidebarMenu(
