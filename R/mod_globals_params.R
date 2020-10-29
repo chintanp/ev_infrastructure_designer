@@ -60,6 +60,7 @@ mod_globals_params_server <- function(id, globals) {
     })
     
     return ( list(
+      # Function to send the updated parameters out
       getGlobalParams = function() {
         global_params <- globals$stash$global_params
         req(global_params)

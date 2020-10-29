@@ -65,6 +65,7 @@ mod_tripgen_params_server <- function(id, globals) {
     })
     
     return ( list(
+      # Function to send the updated parameters out
       getTripgenParams = function() {
         tripgen_params <- globals$stash$tripgen_params
         req(tripgen_params)

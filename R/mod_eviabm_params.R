@@ -65,6 +65,7 @@ mod_eviabm_params_server <- function(id, globals) {
     })
     
     return ( list(
+      # Function to send the updated parameters out
       getEviabmParams = function() {
         eviabm_params <- globals$stash$eviabm_params
         req(eviabm_params)

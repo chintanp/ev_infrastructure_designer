@@ -175,7 +175,8 @@ mod_config_server <-
         removeUI(selector = paste0("#siterow", site_id))
         # Remove the site_id from the siteIDs
         mapData$rvData$siteIDs <-
-          subset(mapData$rvData$siteIDs,!(mapData$rvData$siteIDs %in% site_id))
+          subset(mapData$rvData$siteIDs,
+                 !(mapData$rvData$siteIDs %in% site_id))
         
         # mapData$rvData$siteDetailsDF <- mapData$rvData$siteDetailsDF[-c(site_id), ]
       })
@@ -402,122 +403,29 @@ mod_config_server <-
       
     })
     
+    # Submit Btn click -------------
     observeEvent(input$submit_btn, {
-      # browser()
+      pool <- globals$stash$pool
+      dt_submit <- Sys.time()
+      user_email <- session$userData$auth0_info$email
+      
+      # Get global, tripgen and eviabm parameter updates
       gParamUpdates <- gParamData$getGlobalParams()
       tParamUpdates <- tParamData$getTripgenParams()
       eParamUpdates <- eParamData$getEviabmParams()
       
-      print("In config")
-      print(gParamUpdates)
-      print(tParamUpdates)
-      print(eParamUpdates)
+      # Form queries
+      transactionQueries <-
+        formTransactionQueries(gParamUpdates,
+                               tParamUpdates,
+                               eParamUpdates)
       
-      dt_submit <- Sys.time()
-      pool <- globals$stash$pool
+      query_analysis <- transactionQueries$analysis_query
+      query_user <- transactionQueries$user_query
+      new_evse_query <- transactionQueries$new_evse_query
+      query_ap <- transactionQueries$param_query
       
-      auth0_sub <- session$userData$auth0_info$sub
-      auth0_userid <-
-        strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
-      user_name <- session$userData$auth0_info$name
-      user_email <- session$userData$auth0_info$email
-      
-      rest_new_evse_query <- ''
-      trans_values <- c()
-      
-      for (site_id in mapData$rvData$siteIDs) {
-        rest_new_evse_query <-
-          glue::glue(
-            rest_new_evse_query,
-            "(currval('analysis_record_analysis_id_seq'), {mapData$rvData$siteDetailsDF[site_id, 'trip_count']}, ",
-            "'",
-            mapData$rvData$siteDetailsDF[site_id, "od_pairs"],
-            "', {mapData$rvData$siteDetailsDF[site_id, 'latitude']}, {mapData$rvData$siteDetailsDF[site_id, 'longitude']}, {input[[paste0('dcfc_plug_count', site_id)]]}, {input[[paste0('dcfc_plug_power', site_id)]]}, {input[[paste0('level2_plug_count', site_id)]]}, {input[[paste0('level2_plug_power', site_id)]]},
-            {input[[paste0('fixed_charging_price_slider', site_id)]]}, '",
-            input[[paste0("dd_var_charging_unit", site_id)]],
-            "', {input[[paste0('var_charging_price_slider', site_id)]]}, {input[[paste0('fixed_parking_price_slider', site_id)]]}, '",
-            input[[paste0("dd_var_parking_unit", site_id)]],
-            "', {input[[paste0('var_parking_price_slider', site_id)]]}, {input[[paste0('level2_fixed_charging_price_slider', site_id)]]}, '",
-            input[[paste0("dd_level2_var_charging_unit", site_id)]],
-            "', {input[[paste0('level2_var_charging_price_slider', site_id)]]}, {input[[paste0('level2_fixed_parking_price_slider', site_id)]]}, '",
-            input[[paste0("dd_level2_var_parking_unit", site_id)]],
-            "', {input[[paste0('level2_var_parking_price_slider', site_id)]]}, {input[[paste0('dcfc_plug_type', site_id)]]}), "
-          )
-      }
-      # remove the last comma
-      rest_new_evse_query <-
-        substr(rest_new_evse_query, 1, nchar(rest_new_evse_query) - 2)
-      new_evse_query <-
-        glue::glue(
-          "INSERT INTO new_evses (analysis_id, trip_count, od_pairs, latitude, longitude,
-                                dcfc_plug_count, dcfc_power, level2_plug_count, level2_power,
-                                dcfc_fixed_charging_price, dcfc_var_charging_price_unit,
-                                dcfc_var_charging_price, dcfc_fixed_parking_price, dcfc_var_parking_price_unit,
-                                dcfc_var_parking_price, level2_fixed_charging_price, level2_var_charging_price_unit,
-                                level2_var_charging_price, level2_fixed_parking_price, level2_var_parking_price_unit,
-                                level2_var_parking_price, connector_code) VALUES
-          {rest_new_evse_query}"
-        )
-      query_analysis <-
-        glue::glue(
-          "INSERT INTO analysis_record (user_id, status, include_tesla) VALUES
-                                    ('{auth0_userid}', 'inserted', '{input$tesla_toggle}');"
-        )
-      
-      query_user <-
-        glue::glue(
-          "INSERT INTO user_details (user_id, user_name, email_id) VALUES
-                                    ('{auth0_userid}', '{user_name}', '{user_email}')
-                                    ON CONFLICT (user_id) DO UPDATE SET last_submit_date = NOW();"
-        )
-      
-      query_ap_rest <- ''
-      
-      for (i in 1:ncol(gParamUpdates)) {
-        query_ap_rest <-
-          paste0(
-            query_ap_rest,
-            "(currval('analysis_record_analysis_id_seq'), ",
-            gParamUpdates[1, i],
-            ", '",
-            gParamUpdates[2, i],
-            "' ),"
-          )
-      }
-      
-      for (i in 1:ncol(tParamUpdates)) {
-        query_ap_rest <-
-          paste0(
-            query_ap_rest,
-            "(currval('analysis_record_analysis_id_seq'), ",
-            tParamUpdates[1, i],
-            ", '",
-            tParamUpdates[2, i],
-            "' ),"
-          )
-      }
-      
-      for (i in 1:ncol(eParamUpdates)) {
-        query_ap_rest <-
-          paste0(
-            query_ap_rest,
-            " (currval('analysis_record_analysis_id_seq'), ",
-            eParamUpdates[1, i],
-            ", '",
-            eParamUpdates[2, i],
-            "' ),"
-          )
-      }
-      
-      # remove the comma at the end
-      query_ap_rest_1 <- substr(query_ap_rest, 1, nchar(query_ap_rest) - 1)
-      
-      query_ap <- glue::glue("INSERT INTO analysis_params (analysis_id, param_id, param_value) VALUES
-                    {query_ap_rest_1};")
-      
-
-      
-      print("query")
+      print("queries")
       print(query_analysis)
       print("-----------------------------------------")
       print(query_user)
@@ -567,6 +475,156 @@ mod_config_server <-
       removeSubmitResetBtns()
     })
     
+    formTransactionQueries <-
+      function(gParamUpdates,
+               tParamUpdates,
+               eParamUpdates) {
+        new_evse_query <- formNewEVSEQuery()
+        analysis_query <- formAnalysisQuery()
+        user_query <- formUserQuery()
+        param_query <-
+          formParamQuery(gParamUpdates, tParamUpdates, eParamUpdates)
+        
+        return (
+          list (
+            new_evse_query = new_evse_query,
+            analysis_query = analysis_query,
+            user_query = user_query,
+            param_query = param_query
+          )
+        )
+      }
+    
+    formNewEVSEQuery <- function() {
+      rest_new_evse_query <- ''
+      trans_values <- c()
+      
+      for (site_id in mapData$rvData$siteIDs) {
+        rest_new_evse_query <-
+          glue::glue(
+            rest_new_evse_query,
+            "(currval('analysis_record_analysis_id_seq'), {mapData$rvData$siteDetailsDF[site_id, 'trip_count']}, ",
+            "'",
+            mapData$rvData$siteDetailsDF[site_id, "od_pairs"],
+            "', {mapData$rvData$siteDetailsDF[site_id, 'latitude']}, {mapData$rvData$siteDetailsDF[site_id, 'longitude']}, {input[[paste0('dcfc_plug_count', site_id)]]}, {input[[paste0('dcfc_plug_power', site_id)]]}, {input[[paste0('level2_plug_count', site_id)]]}, {input[[paste0('level2_plug_power', site_id)]]},
+            {input[[paste0('fixed_charging_price_slider', site_id)]]}, '",
+            input[[paste0("dd_var_charging_unit", site_id)]],
+            "', {input[[paste0('var_charging_price_slider', site_id)]]}, {input[[paste0('fixed_parking_price_slider', site_id)]]}, '",
+            input[[paste0("dd_var_parking_unit", site_id)]],
+            "', {input[[paste0('var_parking_price_slider', site_id)]]}, {input[[paste0('level2_fixed_charging_price_slider', site_id)]]}, '",
+            input[[paste0("dd_level2_var_charging_unit", site_id)]],
+            "', {input[[paste0('level2_var_charging_price_slider', site_id)]]}, {input[[paste0('level2_fixed_parking_price_slider', site_id)]]}, '",
+            input[[paste0("dd_level2_var_parking_unit", site_id)]],
+            "', {input[[paste0('level2_var_parking_price_slider', site_id)]]}, {input[[paste0('dcfc_plug_type', site_id)]]}), "
+          )
+      }
+      # remove the last comma
+      rest_new_evse_query <-
+        substr(rest_new_evse_query, 1, nchar(rest_new_evse_query) - 2)
+      new_evse_query <-
+        glue::glue(
+          "INSERT INTO new_evses (analysis_id, trip_count, od_pairs, latitude, longitude,
+                                dcfc_plug_count, dcfc_power, level2_plug_count, level2_power,
+                                dcfc_fixed_charging_price, dcfc_var_charging_price_unit,
+                                dcfc_var_charging_price, dcfc_fixed_parking_price, dcfc_var_parking_price_unit,
+                                dcfc_var_parking_price, level2_fixed_charging_price, level2_var_charging_price_unit,
+                                level2_var_charging_price, level2_fixed_parking_price, level2_var_parking_price_unit,
+                                level2_var_parking_price, connector_code) VALUES
+          {rest_new_evse_query}"
+        )
+      
+      return (rest_new_evse_query)
+    }
+    
+    formAnalysisQuery <- function() {
+     
+      auth0_sub <- session$userData$auth0_info$sub
+      auth0_userid <-
+        strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
+      
+      query_analysis <-
+        glue::glue(
+          "INSERT INTO analysis_record (user_id, status, include_tesla) VALUES
+                                    ('{auth0_userid}', 'inserted', '{input$tesla_toggle}');"
+        )
+      
+      return (query_analysis)
+    }
+    
+    formUserQuery <- function() {
+      auth0_sub <- session$userData$auth0_info$sub
+      auth0_userid <-
+        strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
+      user_name <- session$userData$auth0_info$name
+      user_email <- session$userData$auth0_info$email
+      
+      
+      query_user <-
+        glue::glue(
+          "INSERT INTO user_details (user_id, user_name, email_id) VALUES
+                                    ('{auth0_userid}', '{user_name}', '{user_email}')
+                                    ON CONFLICT (user_id) DO UPDATE SET last_submit_date = NOW();"
+        )
+      
+      return (query_user)
+    }
+    
+    formParamQuery <-
+      function(gParamUpdates,
+               tParamUpdates,
+               eParamUpdates) {
+        query_ap_rest <- ''
+        
+        for (i in 1:ncol(gParamUpdates)) {
+          query_ap_rest <-
+            paste0(
+              query_ap_rest,
+              "(currval('analysis_record_analysis_id_seq'), ",
+              gParamUpdates[1, i],
+              ", '",
+              gParamUpdates[2, i],
+              "' ),"
+            )
+        }
+        
+        for (i in 1:ncol(tParamUpdates)) {
+          query_ap_rest <-
+            paste0(
+              query_ap_rest,
+              "(currval('analysis_record_analysis_id_seq'), ",
+              tParamUpdates[1, i],
+              ", '",
+              tParamUpdates[2, i],
+              "' ),"
+            )
+        }
+        
+        for (i in 1:ncol(eParamUpdates)) {
+          query_ap_rest <-
+            paste0(
+              query_ap_rest,
+              " (currval('analysis_record_analysis_id_seq'), ",
+              eParamUpdates[1, i],
+              ", '",
+              eParamUpdates[2, i],
+              "' ),"
+            )
+        }
+        
+        # remove the comma at the end
+        query_ap_rest_1 <-
+          substr(query_ap_rest, 1, nchar(query_ap_rest) - 1)
+        
+        query_ap <-
+          glue::glue(
+            "INSERT INTO analysis_params (analysis_id, param_id, param_value) VALUES
+                    {query_ap_rest_1};"
+          )
+        
+        return (query_ap)
+        
+      }
+    
     resetNewStations <- function() {
       for (site_id in mapData$rvData$siteIDs) {
         removeUI(selector = paste0("#siterow", site_id))
@@ -576,7 +634,7 @@ mod_config_server <-
       mapData$rvData$siteIDs <- c()
       mapData$rvData$siteID <- 0
       mapData$rvData$siteDetailsDF <-
-        mapData$rvData$siteDetailsDF[0, ]
+        mapData$rvData$siteDetailsDF[0,]
     }
     
     removeSubmitResetBtns <- function() {
