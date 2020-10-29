@@ -2,6 +2,7 @@ FROM rocker/r-ver:4.0.3
 RUN apt-get update && apt-get install -y  gdal-bin git-core libcurl4-openssl-dev libgdal-dev libgeos-dev libgeos++-dev libgit2-dev libpng-dev libpq-dev libssh2-1-dev libssl-dev libudunits2-dev libxml2-dev make pandoc pandoc-citeproc zlib1g-dev && rm -rf /var/lib/apt/lists/*
 RUN echo "options(repos = c(CRAN = 'https://cran.rstudio.com/'), download.file.method = 'libcurl', Ncpus = 4)" >> /usr/local/lib/R/etc/Rprofile.site
 RUN R -e 'install.packages("remotes")'
+RUN Rscript -e 'remotes::install_version("magrittr",upgrade="never", version = "1.5")'
 RUN Rscript -e 'remotes::install_version("glue",upgrade="never", version = "1.4.2")'
 RUN Rscript -e 'remotes::install_version("DBI",upgrade="never", version = "1.1.0")'
 RUN Rscript -e 'remotes::install_version("processx",upgrade="never", version = "3.4.4")'
@@ -16,7 +17,7 @@ RUN Rscript -e 'remotes::install_version("sf",upgrade="never", version = "0.9-6"
 RUN Rscript -e 'remotes::install_version("leaflet",upgrade="never", version = "2.0.3")'
 RUN Rscript -e 'remotes::install_version("shinyjs",upgrade="never", version = "2.0.0")'
 RUN Rscript -e 'remotes::install_version("config",upgrade="never", version = "0.3")'
-RUN Rscript -e 'remotes::install_version("spelling",upgrade="never", version = "NA")'
+RUN Rscript -e 'remotes::install_version("spelling",upgrade="never", version = "2.2")'
 RUN Rscript -e 'remotes::install_version("ipify",upgrade="never", version = "0.2.0")'
 RUN Rscript -e 'remotes::install_version("lgr",upgrade="never", version = "0.3.4")'
 RUN Rscript -e 'remotes::install_version("leafem",upgrade="never", version = "0.1.3")'

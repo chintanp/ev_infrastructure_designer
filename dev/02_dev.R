@@ -35,6 +35,7 @@ usethis::use_package( "auth0" )
 usethis::use_package( "leafem" )
 usethis::use_package( "ipify" )
 usethis::use_package( "data.table" )
+usethis::use_package( "magrittr" )
 
 ## Add modules ----
 ## Create a module infrastructure in R/
