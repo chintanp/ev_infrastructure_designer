@@ -34,11 +34,15 @@ usethis::use_package( "leaflet.mapboxgl" )
 usethis::use_package( "auth0" )
 usethis::use_package( "leafem" )
 usethis::use_package( "ipify" )
+usethis::use_package( "data.table" )
 
 ## Add modules ----
 ## Create a module infrastructure in R/
 golem::add_module( name = "mapdes" ) # Name of the module
 golem::add_module( name = "config" ) # Name of the module
+golem::add_module( name = "globals_params" ) # Name of the module
+golem::add_module( name = "tripgen_params" )
+golem::add_module( name = "eviabm_params" )
 
 ## Add helper functions ----
 ## Creates ftc_* and utils_*

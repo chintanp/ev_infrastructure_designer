@@ -43,7 +43,14 @@ mod_config_ui <- function(id) {
 #'
 #' @noRd
 mod_config_server <-
-  function(input, output, session, globals, mapData) {
+  function(input,
+           output,
+           session,
+           globals,
+           mapData,
+           gParamData,
+           tParamData,
+           eParamData) {
     ns <- session$ns
     lead_exists <- TRUE
     # This function generates the site row UI,
@@ -93,14 +100,16 @@ mod_config_server <-
       if (mapData$rvData$siteID > 0) {
         removeUI(selector = "#postSubmitText")
         if (!lead_exists) {
-          insertUI(selector = '#leadTextDiv',
-                   ui = p(
-                     id = "leadText",
-                     class = "text-muted",
-                     paste(
-                       "Create list of new sites for charging stations by clicking on the map"
-                     )
-                   ))
+          insertUI(
+            selector = '#leadTextDiv',
+            ui = p(
+              id = "leadText",
+              class = "text-muted",
+              paste(
+                "Create list of new sites for charging stations by clicking on the map"
+              )
+            )
+          )
           lead_exists <<- TRUE
         }
         # removeUI(selector = '#leadText')
@@ -395,6 +404,15 @@ mod_config_server <-
     
     observeEvent(input$submit_btn, {
       # browser()
+      gParamUpdates <- gParamData$getGlobalParams()
+      tParamUpdates <- tParamData$getTripgenParams()
+      eParamUpdates <- eParamData$getEviabmParams()
+      
+      print("In config")
+      print(gParamUpdates)
+      print(tParamUpdates)
+      print(eParamUpdates)
+      
       dt_submit <- Sys.time()
       pool <- globals$stash$pool
       
@@ -453,12 +471,60 @@ mod_config_server <-
                                     ON CONFLICT (user_id) DO UPDATE SET last_submit_date = NOW();"
         )
       
+      query_ap_rest <- ''
+      
+      for (i in 1:ncol(gParamUpdates)) {
+        query_ap_rest <-
+          paste0(
+            query_ap_rest,
+            "(currval('analysis_record_analysis_id_seq'), ",
+            gParamUpdates[1, i],
+            ", '",
+            gParamUpdates[2, i],
+            "' ),"
+          )
+      }
+      
+      for (i in 1:ncol(tParamUpdates)) {
+        query_ap_rest <-
+          paste0(
+            query_ap_rest,
+            "(currval('analysis_record_analysis_id_seq'), ",
+            tParamUpdates[1, i],
+            ", '",
+            tParamUpdates[2, i],
+            "' ),"
+          )
+      }
+      
+      for (i in 1:ncol(eParamUpdates)) {
+        query_ap_rest <-
+          paste0(
+            query_ap_rest,
+            " (currval('analysis_record_analysis_id_seq'), ",
+            eParamUpdates[1, i],
+            ", '",
+            eParamUpdates[2, i],
+            "' ),"
+          )
+      }
+      
+      # remove the comma at the end
+      query_ap_rest_1 <- substr(query_ap_rest, 1, nchar(query_ap_rest) - 1)
+      
+      query_ap <- glue::glue("INSERT INTO analysis_params (analysis_id, param_id, param_value) VALUES
+                    {query_ap_rest_1};")
+      
+
+      
       print("query")
       print(query_analysis)
       print("-----------------------------------------")
       print(query_user)
       print("-----------------------------------------")
       print(new_evse_query)
+      print("-------------------")
+      print(query_ap)
       
       conn <- pool::poolCheckout(pool)
       DBI::dbBegin(conn)
@@ -469,6 +535,7 @@ mod_config_server <-
       if (length(mapData$rvData$siteIDs) > 0) {
         DBI::dbExecute(conn, new_evse_query)
       }
+      DBI::dbExecute(conn, query_ap)
       DBI::dbCommit(conn)
       pool::poolReturn(conn)
       insertUI(

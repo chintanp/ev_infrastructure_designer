@@ -6,7 +6,7 @@
 \usage{
 run_app(
   onStart = NULL,
-  options = list(port = as.numeric(Sys.getenv("EVIDES_PORT"))),
+  options = list(port = as.numeric(Sys.getenv("EVIDES_PORT")), launch.browser = TRUE),
   enableBookmarking = NULL,
   ...
 )

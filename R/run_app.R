@@ -7,7 +7,8 @@
 #' @importFrom shiny shinyApp
 #' @importFrom golem with_golem_options
 run_app <- function(onStart = NULL,
-                    options = list(port = as.numeric(Sys.getenv("EVIDES_PORT"))), 
+                    options = list(port = as.numeric(Sys.getenv("EVIDES_PORT")), 
+                                   launch.browser = TRUE), 
                     enableBookmarking = NULL,
                     ...) {
   with_golem_options(
@@ -15,8 +16,7 @@ run_app <- function(onStart = NULL,
                    server = app_server,
                    onStart = onStart,
                    options = options, 
-                   enableBookmarking = enableBookmarking, 
-                   config_file = here::here("inst", "app", "_auth0.yml")), 
+                   enableBookmarking = enableBookmarking), 
     golem_opts = list(...)
   )
 }
