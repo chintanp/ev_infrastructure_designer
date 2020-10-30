@@ -29,7 +29,7 @@ app_ui <- function(request) {
     # Leave this function for adding external resources
     golem_add_external_resources(),
     # Reload of the page works now - as per the hack suggested here: https://github.com/curso-r/auth0/issues/54#issuecomment-558977120
-    tags$script(htmlwidgets::JS("setTimeout(function(){history.pushState({}, 'Page Title', '/');},2000);")),
+    tags$script(htmlwidgets::JS("setTimeout(function(){history.pushState({}, 'Page Title', window.location.pathname);},2000);")),
     # List the first level UI elements here
     bs4Dash::bs4DashPage(
       enable_preloader = FALSE,
