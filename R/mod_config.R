@@ -595,7 +595,7 @@ mod_config_server <-
             )
         }
         
-        for (i in 1:ncol(tParamUpdates)) {
+        for (i in 1:nrow(tParamUpdates)) {
           query_ap_rest <-
             paste0(
               query_ap_rest,
@@ -607,7 +607,7 @@ mod_config_server <-
             )
         }
         
-        for (i in 1:ncol(eParamUpdates)) {
+        for (i in 1:nrow(eParamUpdates)) {
           query_ap_rest <-
             paste0(
               query_ap_rest,
