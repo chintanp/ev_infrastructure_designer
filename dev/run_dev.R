@@ -1,5 +1,8 @@
 # Set options here
-options(golem.app.prod = FALSE, auth0_config_file = here::here('inst', 'app', '_auth0.yml')) # TRUE = production mode, FALSE = development mode
+options(
+  golem.app.prod = FALSE,
+  auth0_config_file = here::here('inst', 'app', '_auth0.yml')
+) # TRUE = production mode, FALSE = development mode
 
 # Detach all loaded packages and clean your environment
 golem::detach_all_attached()

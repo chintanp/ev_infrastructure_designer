@@ -64,6 +64,15 @@ mod_tripgen_params_server <- function(id, globals) {
         }))
     })
     
+    observe({
+      # print("here")
+      lapply(1:nrow(globals$stash$tripgen_params), function(i) {
+        req(input[[paste0("slider_", i)]])
+        globals$stash$tripgen_params$param_value[i] <-
+          input[[paste0("slider_", i)]]
+      })
+    })
+    
     return ( list(
       # Function to send the updated parameters out
       getTripgenParams = function() {

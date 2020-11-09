@@ -59,7 +59,24 @@ mod_globals_params_server <- function(id, globals) {
         }))
     })
     
-    return ( list(
+    observe({
+      # print("here")
+      lapply(1:nrow(globals$stash$global_params), function(i) {
+        req(input[[paste0("slider_", i)]])
+        globals$stash$global_params$param_value[i] <-
+          input[[paste0("slider_", i)]]
+      })
+    })
+    
+    
+    # boxSlider <- function(input,output,session) {
+    #
+    #   globals$stash$global_params$param_value[i] <- input[[paste0("slider_", i)]]
+    #
+    #   return(0)
+    # }
+    
+    return (list(
       # Function to send the updated parameters out
       getGlobalParams = function() {
         global_params <- globals$stash$global_params

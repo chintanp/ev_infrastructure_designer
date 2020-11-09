@@ -405,14 +405,17 @@ mod_config_server <-
     
     # Submit Btn click -------------
     observeEvent(input$submit_btn, {
+      print("New submission")
       pool <- globals$stash$pool
       dt_submit <- Sys.time()
       user_email <- session$userData$auth0_info$email
       
+      # browser()
       # Get global, tripgen and eviabm parameter updates
-      gParamUpdates <- gParamData$getGlobalParams()
-      tParamUpdates <- tParamData$getTripgenParams()
-      eParamUpdates <- eParamData$getEviabmParams()
+      gParamUpdates <- globals$stash$global_params
+      # browser()
+      tParamUpdates <- globals$stash$tripgen_params
+      eParamUpdates <- globals$stash$eviabm_params
       
       # Form queries
       transactionQueries <-
@@ -420,6 +423,7 @@ mod_config_server <-
                                tParamUpdates,
                                eParamUpdates)
       
+      # browser()
       query_analysis <- transactionQueries$analysis_query
       query_user <- transactionQueries$user_query
       new_evse_query <- transactionQueries$new_evse_query
@@ -434,6 +438,7 @@ mod_config_server <-
       print("-------------------")
       print(query_ap)
       
+      # browser()
       conn <- pool::poolCheckout(pool)
       DBI::dbBegin(conn)
       DBI::dbExecute(conn, query_analysis)
@@ -533,11 +538,12 @@ mod_config_server <-
           {rest_new_evse_query}"
         )
       
-      return (rest_new_evse_query)
+      return (new_evse_query)
     }
     
     formAnalysisQuery <- function() {
-     
+      
+      req(session$userData$auth0_info$sub)
       auth0_sub <- session$userData$auth0_info$sub
       auth0_userid <-
         strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
@@ -552,6 +558,7 @@ mod_config_server <-
     }
     
     formUserQuery <- function() {
+      req(session$userData$auth0_info$sub)
       auth0_sub <- session$userData$auth0_info$sub
       auth0_userid <-
         strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
@@ -573,6 +580,7 @@ mod_config_server <-
       function(gParamUpdates,
                tParamUpdates,
                eParamUpdates) {
+        # browser()
         query_ap_rest <- ''
         
         for (i in 1:ncol(gParamUpdates)) {
