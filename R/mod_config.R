@@ -583,14 +583,14 @@ mod_config_server <-
         # browser()
         query_ap_rest <- ''
         
-        for (i in 1:ncol(gParamUpdates)) {
+        for (i in 1:nrow(gParamUpdates)) {
           query_ap_rest <-
             paste0(
               query_ap_rest,
               "(currval('analysis_record_analysis_id_seq'), ",
-              gParamUpdates[1, i],
+              gParamUpdates$param_id[i],
               ", '",
-              gParamUpdates[2, i],
+              gParamUpdates$param_value[i],
               "' ),"
             )
         }
@@ -600,9 +600,9 @@ mod_config_server <-
             paste0(
               query_ap_rest,
               "(currval('analysis_record_analysis_id_seq'), ",
-              tParamUpdates[1, i],
+              tParamUpdates$param_id[i],
               ", '",
-              tParamUpdates[2, i],
+              tParamUpdates$param_value[i],
               "' ),"
             )
         }
@@ -612,9 +612,9 @@ mod_config_server <-
             paste0(
               query_ap_rest,
               " (currval('analysis_record_analysis_id_seq'), ",
-              eParamUpdates[1, i],
+              eParamUpdates$param_id[i],
               ", '",
-              eParamUpdates[2, i],
+              eParamUpdates$param_value[i],
               "' ),"
             )
         }
