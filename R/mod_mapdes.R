@@ -114,7 +114,7 @@ mod_mapdes_server <- function(input, output, session, globals) {
     overlay_names <-
       c("Buffer")
     
-    base_layers <- c( "CHAdeMO", "Combo", "Streets")
+    base_layers <- c( "Both", "CHAdeMO", "COMBO")
     
     combo_icon <-
       leaflet::makeAwesomeIcon(
@@ -147,48 +147,21 @@ mod_mapdes_server <- function(input, output, session, globals) {
       leaflet::setMaxBounds(-124.8361, 45.5437,-116.9174, 49.0024) %>%
       leaflet::addTiles() %>%
       leaflet.mapboxgl::addMapboxGL(
-        style = "mapbox://styles/mapbox/streets-v11",
+        style = "mapbox://styles/chintanp/ckhmly2n1009u1bpg7ojuzn3h", # COMBO only
         accessToken = Sys.getenv("MAPBOX_ACCESS_TOKEN"),
         group = base_layers[3],
         setView = FALSE
       )  %>%
-      # Base groups
-      # leaflet::addPolylines(
-      #   data = shape_trip_feasibility_combo,
-      #   weight = shape_trip_feasibility_combo$trip_count / 20000,
-      #   color = "#475DCC",
-      #   group = overlay_names[2],
-      #   opacity = 1,
-      #   label = paste0("trip_count : ",
-      #                  shape_trip_feasibility_combo$trip_count),
-      #   popup = paste0("trip_count : ",
-      #                  shape_trip_feasibility_combo$trip_count)
-    # ) %>%
-    # leaflet::addPolylines(
-    #   data = shape_trip_feasibility_chademo,
-    #   weight = shape_trip_feasibility_chademo$trip_count / 20000,
-    #   color = "#F23D3D",
-    #   group = overlay_names[3],
-    #   opacity = 1,
-    #   label = paste0(
-    #     "trip_count : ",
-    #     shape_trip_feasibility_chademo$trip_count
-    #   ),
-    #   popup = paste0(
-    #     "trip_count : ",
-    #     shape_trip_feasibility_chademo$trip_count
-    #   )
-    # ) %>%
     leaflet.mapboxgl::addMapboxGL(
-      style = "mapbox://styles/chintanp/ckeelr9cd059z19l8eknlqdw0",
+      style = "mapbox://styles/chintanp/ckhmnh3oa01r419pkc9qgn0sq", # both combo and chademo
       accessToken = Sys.getenv("MAPBOX_ACCESS_TOKEN"),
-      group = base_layers[2],
+      group = base_layers[1],
       setView = FALSE
     ) %>%
       leaflet.mapboxgl::addMapboxGL(
-        style = "mapbox://styles/chintanp/ckedhyg6x35111an1pe2vcslz",
+        style = "mapbox://styles/chintanp/ckhmnjizl01s819qk4vqw449m", # chademo only
         accessToken = Sys.getenv("MAPBOX_ACCESS_TOKEN"),
-        group = base_layers[1],
+        group = base_layers[2],
         setView = FALSE
       ) %>%
       
@@ -198,9 +171,27 @@ mod_mapdes_server <- function(input, output, session, globals) {
         popup = paste0("ID : ", all_chargers_combo$bevse_id),
         label = paste0("ID : ", all_chargers_combo$bevse_id),
         icon = combo_icon,
+        group = base_layers[3]
+        # clusterOptions = leaflet::markerClusterOptions()
+      )  %>%
+      leaflet::addAwesomeMarkers(
+        lng = all_chargers_chademo$longitude ,
+        lat = all_chargers_chademo$latitude,
+        popup = paste0("ID : ", all_chargers_chademo$bevse_id),
+        label = paste0("ID : ", all_chargers_chademo$bevse_id),
+        icon = chademo_icon,
         group = base_layers[2]
         # clusterOptions = leaflet::markerClusterOptions()
       )  %>%
+      leaflet::addAwesomeMarkers(
+        lng = all_chargers_combo$longitude ,
+        lat = all_chargers_combo$latitude,
+        popup = paste0("ID : ", all_chargers_combo$bevse_id),
+        label = paste0("ID : ", all_chargers_combo$bevse_id),
+        icon = combo_icon,
+        group = base_layers[1]
+        # clusterOptions = leaflet::markerClusterOptions()
+      ) %>%
       leaflet::addAwesomeMarkers(
         lng = all_chargers_chademo$longitude ,
         lat = all_chargers_chademo$latitude,

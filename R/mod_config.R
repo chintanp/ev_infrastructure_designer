@@ -405,6 +405,7 @@ mod_config_server <-
     
     # Submit Btn click -------------
     observeEvent(input$submit_btn, {
+      browser()
       pool <- globals$stash$pool
       dt_submit <- Sys.time()
       user_email <- session$userData$auth0_info$email
