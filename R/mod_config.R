@@ -39,6 +39,7 @@ mod_config_ui <- function(id) {
   )
 }
 
+
 #' config Server Function
 #'
 #' @noRd
@@ -405,15 +406,18 @@ mod_config_server <-
     
     # Submit Btn click -------------
     observeEvent(input$submit_btn, {
-      browser()
+      # browser()
+      print("New submission")
       pool <- globals$stash$pool
       dt_submit <- Sys.time()
       user_email <- session$userData$auth0_info$email
       
+      # browser()
       # Get global, tripgen and eviabm parameter updates
-      gParamUpdates <- gParamData$getGlobalParams()
-      tParamUpdates <- tParamData$getTripgenParams()
-      eParamUpdates <- eParamData$getEviabmParams()
+      gParamUpdates <- globals$stash$global_params
+      # browser()
+      tParamUpdates <- globals$stash$tripgen_params
+      eParamUpdates <- globals$stash$eviabm_params
       
       # Form queries
       transactionQueries <-
@@ -421,6 +425,7 @@ mod_config_server <-
                                tParamUpdates,
                                eParamUpdates)
       
+      # browser()
       query_analysis <- transactionQueries$analysis_query
       query_user <- transactionQueries$user_query
       new_evse_query <- transactionQueries$new_evse_query
@@ -435,6 +440,7 @@ mod_config_server <-
       print("-------------------")
       print(query_ap)
       
+      # browser()
       conn <- pool::poolCheckout(pool)
       DBI::dbBegin(conn)
       DBI::dbExecute(conn, query_analysis)
@@ -534,11 +540,12 @@ mod_config_server <-
           {rest_new_evse_query}"
         )
       
-      return (rest_new_evse_query)
+      return (new_evse_query)
     }
     
     formAnalysisQuery <- function() {
-     
+      
+      req(session$userData$auth0_info$sub)
       auth0_sub <- session$userData$auth0_info$sub
       auth0_userid <-
         strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
@@ -553,6 +560,7 @@ mod_config_server <-
     }
     
     formUserQuery <- function() {
+      req(session$userData$auth0_info$sub)
       auth0_sub <- session$userData$auth0_info$sub
       auth0_userid <-
         strsplit(auth0_sub, "|", fixed = TRUE)[[1]][2]
@@ -574,40 +582,41 @@ mod_config_server <-
       function(gParamUpdates,
                tParamUpdates,
                eParamUpdates) {
+        # browser()
         query_ap_rest <- ''
         
-        for (i in 1:ncol(gParamUpdates)) {
+        for (i in 1:nrow(gParamUpdates)) {
           query_ap_rest <-
             paste0(
               query_ap_rest,
               "(currval('analysis_record_analysis_id_seq'), ",
-              gParamUpdates[1, i],
+              gParamUpdates$param_id[i],
               ", '",
-              gParamUpdates[2, i],
+              gParamUpdates$param_value[i],
               "' ),"
             )
         }
         
-        for (i in 1:ncol(tParamUpdates)) {
+        for (i in 1:nrow(tParamUpdates)) {
           query_ap_rest <-
             paste0(
               query_ap_rest,
               "(currval('analysis_record_analysis_id_seq'), ",
-              tParamUpdates[1, i],
+              tParamUpdates$param_id[i],
               ", '",
-              tParamUpdates[2, i],
+              tParamUpdates$param_value[i],
               "' ),"
             )
         }
         
-        for (i in 1:ncol(eParamUpdates)) {
+        for (i in 1:nrow(eParamUpdates)) {
           query_ap_rest <-
             paste0(
               query_ap_rest,
               " (currval('analysis_record_analysis_id_seq'), ",
-              eParamUpdates[1, i],
+              eParamUpdates$param_id[i],
               ", '",
-              eParamUpdates[2, i],
+              eParamUpdates$param_value[i],
               "' ),"
             )
         }
@@ -659,8 +668,3 @@ mod_config_server <-
     })
   }
 
-## To be copied in the UI
-# mod_config_ui("config_ui_1")
-
-## To be copied in the server
-# callModule(mod_config_server, "config_ui_1")
