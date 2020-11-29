@@ -136,6 +136,10 @@ mod_config_server <-
               status = "primary"
             ),
             hr(),
+            radioButtons(ns("set_radio"), label = h3("Set"),
+                         choices = list("Previous" = 1, "New" = 2), 
+                         selected = 1),
+            hr(),
             fluidRow(
               column(
                 6,
