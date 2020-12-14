@@ -410,6 +410,7 @@ mod_config_server <-
       print("New submission")
       pool <- globals$stash$pool
       dt_submit <- Sys.time()
+      print(session$userData$auth0_info)
       user_email <- session$userData$auth0_info$email
       
       # browser()
