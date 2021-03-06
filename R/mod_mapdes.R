@@ -49,8 +49,57 @@ mod_mapdes_server <- function(input, output, session, globals) {
       iconColor = "white"
     )
   
+  combo_icon <-
+    leaflet::makeAwesomeIcon(
+      icon = "charging-station",
+      library = "fa",
+      iconColor = "#475DCC",
+      markerColor = "white",
+      extraClasses = ""
+    )
+  
+  combo_icon_sel <-
+    leaflet::makeAwesomeIcon(
+      icon = "charging-station",
+      library = "fa",
+      iconColor = "#475DCC",
+      markerColor = "orange",
+      extraClasses = ""
+    ) 
+  
+  combo_icon2 <-
+    leaflet::makeIcon(iconUrl = "www/combo_fa.svg",
+                      iconWidth = "15.75",
+                      iconHeight = "14")
+  
+  chademo_icon <-
+    leaflet::makeAwesomeIcon(
+      icon = "charging-station",
+      library = "fa",
+      iconColor = "#F23D3D",
+      markerColor = "white",
+      extraClasses = ""
+    )
+  
+  chademo_icon_sel <-
+    leaflet::makeAwesomeIcon(
+      icon = "charging-station",
+      library = "fa",
+      iconColor = "#F23D3D",
+      markerColor = "orange",
+      extraClasses = ""
+    )
+  
+  
+  chademo_icon2 <-
+    leaflet::makeIcon(iconUrl = "www/chademo_fa.svg",
+                      iconWidth = "15.75",
+                      iconHeight = "14")
+  
+  
   rvData <- reactiveValues(
     siteID = 0,
+    new_site_counter = 0,
     siteIDs = c(),
     click = NULL,
     siteDetailsDF = data.frame(
@@ -77,7 +126,8 @@ mod_mapdes_server <- function(input, output, session, globals) {
       level2_var_parking_price = numeric(),
       analysis_id = integer(),
       stringsAsFactors = FALSE
-    )
+    ), 
+    bevse_dcfc = data.frame()
   )
   
   output$map_card_title <- renderText({
@@ -102,6 +152,7 @@ mod_mapdes_server <- function(input, output, session, globals) {
                                   longitude,
                                   bevse_id,
                                   connector_code) %>% dplyr::filter(dcfc_count > 0) %>% dplyr::collect()
+    rvData$bevse_dcfc <- evse_dcfc
     
     all_chargers_combo <-
       evse_dcfc[evse_dcfc$connector_code == 2 |
@@ -116,32 +167,7 @@ mod_mapdes_server <- function(input, output, session, globals) {
     
     base_layers <- c( "Both", "CHAdeMO", "COMBO")
     
-    combo_icon <-
-      leaflet::makeAwesomeIcon(
-        icon = "charging-station",
-        library = "fa",
-        iconColor = "#475DCC",
-        markerColor = "white",
-        extraClasses = ""
-      )
-    combo_icon2 <-
-      leaflet::makeIcon(iconUrl = "www/combo_fa.svg",
-                        iconWidth = "15.75",
-                        iconHeight = "14")
-    
-    chademo_icon <-
-      leaflet::makeAwesomeIcon(
-        icon = "charging-station",
-        library = "fa",
-        iconColor = "#F23D3D",
-        markerColor = "white",
-        extraClasses = ""
-      )
-    chademo_icon2 <-
-      leaflet::makeIcon(iconUrl = "www/chademo_fa.svg",
-                        iconWidth = "15.75",
-                        iconHeight = "14")
-    
+
     wa_map <-
       leaflet::leaflet(options = leaflet::leafletOptions(preferCanvas = TRUE)) %>%
       leaflet::setMaxBounds(-124.8361, 45.5437,-116.9174, 49.0024) %>%
@@ -171,7 +197,9 @@ mod_mapdes_server <- function(input, output, session, globals) {
         popup = paste0("ID : ", all_chargers_combo$bevse_id),
         label = paste0("ID : ", all_chargers_combo$bevse_id),
         icon = combo_icon,
-        group = base_layers[3]
+        group = base_layers[3], 
+        layerId = all_chargers_combo$bevse_id, 
+        popupOptions = leaflet::popupOptions(autoClose = FALSE, closeOnClick = FALSE, closeButton = FALSE)
         # clusterOptions = leaflet::markerClusterOptions()
       )  %>%
       leaflet::addAwesomeMarkers(
@@ -180,7 +208,9 @@ mod_mapdes_server <- function(input, output, session, globals) {
         popup = paste0("ID : ", all_chargers_chademo$bevse_id),
         label = paste0("ID : ", all_chargers_chademo$bevse_id),
         icon = chademo_icon,
-        group = base_layers[2]
+        group = base_layers[2], 
+        layerId = all_chargers_chademo$bevse_id, 
+        popupOptions = leaflet::popupOptions(autoClose = FALSE, closeOnClick = FALSE, closeButton = FALSE)
         # clusterOptions = leaflet::markerClusterOptions()
       )  %>%
       leaflet::addAwesomeMarkers(
@@ -189,7 +219,9 @@ mod_mapdes_server <- function(input, output, session, globals) {
         popup = paste0("ID : ", all_chargers_combo$bevse_id),
         label = paste0("ID : ", all_chargers_combo$bevse_id),
         icon = combo_icon,
-        group = base_layers[1]
+        group = base_layers[1], 
+        layerId = all_chargers_combo$bevse_id, 
+        popupOptions = leaflet::popupOptions(autoClose = FALSE, closeOnClick = FALSE, closeButton = FALSE)
         # clusterOptions = leaflet::markerClusterOptions()
       ) %>%
       leaflet::addAwesomeMarkers(
@@ -198,7 +230,9 @@ mod_mapdes_server <- function(input, output, session, globals) {
         popup = paste0("ID : ", all_chargers_chademo$bevse_id),
         label = paste0("ID : ", all_chargers_chademo$bevse_id),
         icon = chademo_icon,
-        group = base_layers[1]
+        group = base_layers[1],
+        layerId = all_chargers_chademo$bevse_id, 
+        popupOptions = leaflet::popupOptions(autoClose = FALSE, closeOnClick = FALSE, closeButton = FALSE)
         # clusterOptions = leaflet::markerClusterOptions()
       ) %>%
       leaflet::addPolygons(
@@ -239,7 +273,8 @@ mod_mapdes_server <- function(input, output, session, globals) {
     
     # Only add a marker to the map if it is within the buffer region
     if (!is.na(buffer_road$trip_count)) {
-      rvData$siteID <-  rvData$siteID + 1
+      rvData$new_site_counter <-  rvData$new_site_counter + 1
+      rvData$siteID <- paste0('n', as.character(rvData$new_site_counter))
       rvData$siteIDs <- c(rvData$siteIDs, rvData$siteID)
       
       leaflet::leafletProxy(mapId = "wa_road_map") %>%
@@ -270,6 +305,32 @@ mod_mapdes_server <- function(input, output, session, globals) {
     }
   })
   
+  observeEvent(input$wa_road_map_marker_click, {
+    
+    print(input$wa_road_map_marker_click$id)
+    print("marker clicked")
+    
+    rvData$siteID <-  input$wa_road_map_marker_click$id
+    
+    # clicked_charger <- subset(rvData$bevse_dcfc, bevse_id = input$wa_road_map_marker_click$id)
+    # 
+    # leaflet::leafletProxy(mapId = "wa_road_map") %>% 
+    #   leaflet::removeMarker(layerId = input$wa_road_map_marker_click$id) %>%
+    #   leaflet::addAwesomeMarkers(
+    #     lng = clicked_charger$longitude,
+    #     lat = clicked_charger$latitude,
+    #     popup = paste0("ID : ", clicked_charger$bevse_id),
+    #     label = paste0("ID : ", clicked_charger$bevse_id),
+    #     icon = chademo_icon,
+    #     group = base_layers[1],
+    #     layerId = all_chargers_chademo$bevse_id, 
+    #     popupOptions = leaflet::popupOptions(autoClose = FALSE, closeOnClick = FALSE)
+    #     # clusterOptions = leaflet::markerClusterOptions()
+    #   )
+    #   
+    
+    
+  })
   # Return values -------------
   return (list (
     "rvData" = rvData,

@@ -98,7 +98,15 @@ mod_config_server <-
     observeEvent(mapData$rvData$siteID, {
       # print("fired")
       # print("mapData$rvData$siteID")
-      # print(mapData$rvData$siteID)
+      print(mapData$rvData$siteID)
+      req(mapData$rvData$siteID != 0)
+      first_char <- substr(mapData$rvData$siteID, 0, 1)
+      print(first_char)
+      if(first_char == 'n') {
+        print("new charger")
+      } else {
+        print("upgrading existing charger")
+      }
       
       if (mapData$rvData$siteID > 0) {
         removeUI(selector = "#postSubmitText")
