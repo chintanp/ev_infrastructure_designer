@@ -107,6 +107,7 @@ mod_mapdes_server <- function(input, output, session, globals) {
       od_pairs = character(),
       latitude = numeric(),
       longitude = numeric(),
+      siteID = character(),
       connector_code = integer(),
       dcfc_plug_count = integer(),
       dcfc_power = numeric(),
@@ -291,15 +292,16 @@ mod_mapdes_server <- function(input, output, session, globals) {
           ),
           labelOptions = leaflet::labelOptions(noHide = T),
           group = "overlay",
+          
           icon = new_icon,
           layerId = as.character(rvData$siteID)
         )
       
-      rvData$siteDetailsDF[nrow(rvData$siteDetailsDF) + 1, 1:4] <-
+      rvData$siteDetailsDF[nrow(rvData$siteDetailsDF) + 1, 1:5] <-
         c(buffer_road$trip_count,
           as.character(buffer_road$od_pairs),
           clat,
-          clng)
+          clng, rvData$siteID)
       # Below jugglery to set the row names as siteID may not be needed
       #rownames(rvData$siteDetailsDF)[rownames(rvData$siteDetailsDF) == as.character(nrow(rvData$siteDetailsDF))] <- rvData$siteID
     }
@@ -311,23 +313,13 @@ mod_mapdes_server <- function(input, output, session, globals) {
     print("marker clicked")
     
     rvData$siteID <-  input$wa_road_map_marker_click$id
+    rvData$siteIDs <- c(rvData$siteIDs, rvData$siteID)
     
-    # clicked_charger <- subset(rvData$bevse_dcfc, bevse_id = input$wa_road_map_marker_click$id)
-    # 
-    # leaflet::leafletProxy(mapId = "wa_road_map") %>% 
-    #   leaflet::removeMarker(layerId = input$wa_road_map_marker_click$id) %>%
-    #   leaflet::addAwesomeMarkers(
-    #     lng = clicked_charger$longitude,
-    #     lat = clicked_charger$latitude,
-    #     popup = paste0("ID : ", clicked_charger$bevse_id),
-    #     label = paste0("ID : ", clicked_charger$bevse_id),
-    #     icon = chademo_icon,
-    #     group = base_layers[1],
-    #     layerId = all_chargers_chademo$bevse_id, 
-    #     popupOptions = leaflet::popupOptions(autoClose = FALSE, closeOnClick = FALSE)
-    #     # clusterOptions = leaflet::markerClusterOptions()
-    #   )
-    #   
+    rvData$siteDetailsDF[nrow(rvData$siteDetailsDF) + 1, 1:5] <-
+      c(0,
+        '',
+        input$wa_road_map_marker_click$lat,
+        input$wa_road_map_marker_click$lng, rvData$siteID)
     
     
   })

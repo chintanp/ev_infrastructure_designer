@@ -137,7 +137,7 @@ mod_config_server <-
         
         
       }
-      if (mapData$rvData$siteID == 1) {
+      if (length(mapData$rvData$siteIDs) == 1) {
         # removeUI(selector = '#leadText')
         insertUI(
           selector = '#submitReset',
@@ -513,7 +513,7 @@ mod_config_server <-
       print("-------------------")
       print(query_ap)
       
-      # browser()
+      browser()
       conn <- pool::poolCheckout(pool)
       DBI::dbBegin(conn)
       if (input$set_radio == '1') {
@@ -598,15 +598,19 @@ mod_config_server <-
     formNewEVSEQuery <- function() {
       rest_new_evse_query <- ''
       trans_values <- c()
-      
+      browser()
       for (site_id in mapData$rvData$siteIDs) {
+        # Test whether the new site is a new charger or an upgrade
+        if (substr(site_id, 1, 1) == 'n') {
+          
+        siteDetailRow <- mapData$rvData$siteDetailsDF[mapData$rvData$siteDetailsDF$siteID == site_id, ]
         rest_new_evse_query <-
           glue::glue(
             rest_new_evse_query,
-            "(currval('analysis_record_analysis_id_seq'), {mapData$rvData$siteDetailsDF[site_id, 'trip_count']}, ",
+            "(currval('analysis_record_analysis_id_seq'), {siteDetailRow$trip_count}, ",
             "'",
-            mapData$rvData$siteDetailsDF[site_id, "od_pairs"],
-            "', {mapData$rvData$siteDetailsDF[site_id, 'latitude']}, {mapData$rvData$siteDetailsDF[site_id, 'longitude']}, {input[[paste0('dcfc_plug_count', site_id)]]}, {input[[paste0('dcfc_plug_power', site_id)]]}, {input[[paste0('level2_plug_count', site_id)]]}, {input[[paste0('level2_plug_power', site_id)]]},
+            siteDetailRow$od_pairs,
+            "', {siteDetailRow$latitude}, {siteDetailRow$longitude}, {input[[paste0('dcfc_plug_count', site_id)]]}, {input[[paste0('dcfc_plug_power', site_id)]]}, {input[[paste0('level2_plug_count', site_id)]]}, {input[[paste0('level2_plug_power', site_id)]]},
             {input[[paste0('fixed_charging_price_slider', site_id)]]}, '",
             input[[paste0("dd_var_charging_unit", site_id)]],
             "', {input[[paste0('var_charging_price_slider', site_id)]]}, {input[[paste0('fixed_parking_price_slider', site_id)]]}, '",
@@ -615,8 +619,30 @@ mod_config_server <-
             input[[paste0("dd_level2_var_charging_unit", site_id)]],
             "', {input[[paste0('level2_var_charging_price_slider', site_id)]]}, {input[[paste0('level2_fixed_parking_price_slider', site_id)]]}, '",
             input[[paste0("dd_level2_var_parking_unit", site_id)]],
-            "', {input[[paste0('level2_var_parking_price_slider', site_id)]]}, {input[[paste0('dcfc_plug_type', site_id)]]}), "
+            "', {input[[paste0('level2_var_parking_price_slider', site_id)]]}, {input[[paste0('dcfc_plug_type', site_id)]]}, '", 'new', "', ''), "
           )
+        
+        } else {
+          siteDetailRow <- mapData$rvData$siteDetailsDF[mapData$rvData$siteDetailsDF$siteID == site_id, ]
+          rest_new_evse_query <-
+            glue::glue(
+              rest_new_evse_query,
+              "(currval('analysis_record_analysis_id_seq'), {siteDetailRow$trip_count}, ",
+              "'",
+              siteDetailRow$od_pairs,
+              "', {siteDetailRow$latitude}, {siteDetailRow$longitude}, {input[[paste0('dcfc_plug_count', site_id)]]}, {input[[paste0('dcfc_plug_power', site_id)]]}, {input[[paste0('level2_plug_count', site_id)]]}, {input[[paste0('level2_plug_power', site_id)]]},
+            {input[[paste0('fixed_charging_price_slider', site_id)]]}, '",
+              input[[paste0("dd_var_charging_unit", site_id)]],
+              "', {input[[paste0('var_charging_price_slider', site_id)]]}, {input[[paste0('fixed_parking_price_slider', site_id)]]}, '",
+              input[[paste0("dd_var_parking_unit", site_id)]],
+              "', {input[[paste0('var_parking_price_slider', site_id)]]}, {input[[paste0('level2_fixed_charging_price_slider', site_id)]]}, '",
+              input[[paste0("dd_level2_var_charging_unit", site_id)]],
+              "', {input[[paste0('level2_var_charging_price_slider', site_id)]]}, {input[[paste0('level2_fixed_parking_price_slider', site_id)]]}, '",
+              input[[paste0("dd_level2_var_parking_unit", site_id)]],
+              "', {input[[paste0('level2_var_parking_price_slider', site_id)]]}, {input[[paste0('dcfc_plug_type', site_id)]]}, '", 'upgrade', "', '" , siteDetailRow$siteID, "'), "
+            )
+        }
+        
       }
       # remove the last comma
       rest_new_evse_query <-
@@ -629,7 +655,7 @@ mod_config_server <-
                                 dcfc_var_charging_price, dcfc_fixed_parking_price, dcfc_var_parking_price_unit,
                                 dcfc_var_parking_price, level2_fixed_charging_price, level2_var_charging_price_unit,
                                 level2_var_charging_price, level2_fixed_parking_price, level2_var_parking_price_unit,
-                                level2_var_parking_price, connector_code) VALUES
+                                level2_var_parking_price, connector_code, station_type, comments) VALUES
           {rest_new_evse_query}"
         )
       
