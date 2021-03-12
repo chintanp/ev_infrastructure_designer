@@ -17,9 +17,12 @@ Refer to: https://github.com/s-fleck/lgr/issues/29#issuecomment-558022635 #' for
 }
 }
 \if{html}{
-\out{<details open ><summary>Inherited methods</summary>}
+\out{<details ><summary>Inherited methods</summary>}
 \itemize{
 \item \out{<span class="pkg-link" data-pkg="lgr" data-topic="LayoutJson" data-id="initialize">}\href{../../lgr/html/LayoutJson.html#method-initialize}{\code{lgr::LayoutJson$initialize()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="lgr" data-topic="LayoutJson" data-id="parse">}\href{../../lgr/html/LayoutJson.html#method-parse}{\code{lgr::LayoutJson$parse()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="lgr" data-topic="LayoutJson" data-id="read">}\href{../../lgr/html/LayoutJson.html#method-read}{\code{lgr::LayoutJson$read()}}\out{</span>}
+\item \out{<span class="pkg-link" data-pkg="lgr" data-topic="LayoutJson" data-id="set_timestamp_fmt">}\href{../../lgr/html/LayoutJson.html#method-set_timestamp_fmt}{\code{lgr::LayoutJson$set_timestamp_fmt()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="lgr" data-topic="LayoutJson" data-id="set_toJSON_args">}\href{../../lgr/html/LayoutJson.html#method-set_toJSON_args}{\code{lgr::LayoutJson$set_toJSON_args()}}\out{</span>}
 \item \out{<span class="pkg-link" data-pkg="lgr" data-topic="LayoutJson" data-id="toString">}\href{../../lgr/html/LayoutJson.html#method-toString}{\code{lgr::LayoutJson$toString()}}\out{</span>}
 }

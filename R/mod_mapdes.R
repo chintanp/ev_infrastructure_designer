@@ -312,14 +312,21 @@ mod_mapdes_server <- function(input, output, session, globals) {
     print(input$wa_road_map_marker_click$id)
     print("marker clicked")
     
-    rvData$siteID <-  input$wa_road_map_marker_click$id
-    rvData$siteIDs <- c(rvData$siteIDs, rvData$siteID)
+    if (input$wa_road_map_marker_click$id %in% rvData$siteIDs) {
+
+    } else {
+      rvData$siteID <-  input$wa_road_map_marker_click$id
+      rvData$siteIDs <- c(rvData$siteIDs, rvData$siteID)
+      
+      rvData$siteDetailsDF[nrow(rvData$siteDetailsDF) + 1, 1:5] <-
+        c(0,
+          '',
+          input$wa_road_map_marker_click$lat,
+          input$wa_road_map_marker_click$lng, rvData$siteID)
+    }
     
-    rvData$siteDetailsDF[nrow(rvData$siteDetailsDF) + 1, 1:5] <-
-      c(0,
-        '',
-        input$wa_road_map_marker_click$lat,
-        input$wa_road_map_marker_click$lng, rvData$siteID)
+    
+    
     
     
   })
