@@ -45,6 +45,7 @@ golem::add_module( name = "config" ) # Name of the module
 golem::add_module( name = "globals_params" ) # Name of the module
 golem::add_module( name = "tripgen_params" )
 golem::add_module( name = "eviabm_params" )
+golem::add_module( name = "upload_cs" )
 
 ## Add helper functions ----
 ## Creates ftc_* and utils_*

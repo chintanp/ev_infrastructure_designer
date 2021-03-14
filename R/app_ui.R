@@ -14,22 +14,26 @@ app_ui <- function(request) {
                                         ))
   
   parameters_tab <- bs4Dash::bs4TabItem(tabName = "parameters_tab",
-                                        fluidRow(column(
-                                          width = 4,
-                                          mod_globals_params_ui("globals_params_ui_1")
-                                        ), column(
-                                          width = 4,
-                                          mod_tripgen_params_ui("tripgen_params_ui_1")
-                                        ), column(
-                                          width = 4,
-                                          mod_eviabm_params_ui("eviabm_params_ui_1")
-                                        )))
+                                        fluidRow(
+                                          column(width = 4,
+                                                 mod_globals_params_ui("globals_params_ui_1")),
+                                          column(width = 4,
+                                                 mod_tripgen_params_ui("tripgen_params_ui_1")),
+                                          column(width = 4,
+                                                 mod_eviabm_params_ui("eviabm_params_ui_1"))
+                                        ))
+  
+  cs_upload_tab <-  bs4Dash::bs4TabItem(tabName = "cs_upload_tab", mod_upload_cs_ui("upload_cs_ui_1"))
   
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
     # Reload of the page works now - as per the hack suggested here: https://github.com/curso-r/auth0/issues/54#issuecomment-558977120
-    tags$script(htmlwidgets::JS("setTimeout(function(){history.pushState({}, 'Page Title', window.location.pathname);},2000);")),
+    tags$script(
+      htmlwidgets::JS(
+        "setTimeout(function(){history.pushState({}, 'Page Title', window.location.pathname);},2000);"
+      )
+    ),
     # List the first level UI elements here
     bs4Dash::bs4DashPage(
       enable_preloader = FALSE,
@@ -56,6 +60,9 @@ app_ui <- function(request) {
           bs4Dash::bs4SidebarMenuItem("New Submission",
                                       tabName = "new_submit_tab",
                                       icon = "plus-circle"),
+          bs4Dash::bs4SidebarMenuItem("File Upload",
+                                      tabName = "cs_upload_tab",
+                                      icon = "arrow-up"),
           bs4Dash::bs4SidebarMenuItem("Parameters",
                                       tabName = "parameters_tab",
                                       icon = "sliders-h")
@@ -74,7 +81,8 @@ app_ui <- function(request) {
       body = bs4Dash::bs4DashBody(
         shinyjs::useShinyjs(),
         # fresh::use_theme(bgtheme),
-        bs4Dash::bs4TabItems(new_submit_tab, 
+        bs4Dash::bs4TabItems(new_submit_tab,
+                             cs_upload_tab,
                              parameters_tab)
         
       )

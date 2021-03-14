@@ -33,6 +33,8 @@ app_server <- function(input, output, session) {
   gParamData <- mod_globals_params_server("globals_params_ui_1", GlobalData)
   tParamData <- mod_tripgen_params_server("tripgen_params_ui_1", GlobalData)
   eParamData <- mod_eviabm_params_server("eviabm_params_ui_1", GlobalData)
+  
+  callModule(mod_upload_cs_server, "upload_cs_ui_1")
   callModule(mod_config_server, "config_ui_1", 
              GlobalData, mapData, gParamData, tParamData, eParamData)
 }
