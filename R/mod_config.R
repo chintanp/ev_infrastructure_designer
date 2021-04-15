@@ -96,6 +96,7 @@ mod_config_server <-
     }
     # When a map marker is clicked, add a new row on the config tab
     observeEvent(mapData$rvData$siteID, {
+      # browser()
       # print("fired")
       # print("mapData$rvData$siteID")
       print(mapData$rvData$siteID)
@@ -137,7 +138,7 @@ mod_config_server <-
         
         
       }
-      if (length(mapData$rvData$siteIDs) == 1) {
+      if (!setText_exists && length(mapData$rvData$siteIDs) == 1) {
         # removeUI(selector = '#leadText')
         insertUI(
           selector = '#submitReset',
@@ -233,6 +234,7 @@ mod_config_server <-
     
     attachRemoveObserver <- function(site_id) {
       observeEvent(input[[paste0("removeBtn", site_id)]], {
+        # browser()
         print("Button clicked")
         print(site_id)
         
@@ -770,6 +772,7 @@ mod_config_server <-
     removeSubmitResetBtns <- function() {
       print("remove submit reset Btns")
       removeUI(selector = '#submitResetBtns')
+      setText_exists <<- FALSE
     }
     
     observeEvent(input$postSubmitBtn, {
