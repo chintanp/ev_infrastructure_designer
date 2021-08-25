@@ -33,6 +33,7 @@ RUN Rscript -e 'remotes::install_version("DT",upgrade="never", version = "0.16")
 RUN Rscript -e 'remotes::install_github("rstudio/leaflet.mapboxgl@dec90d124daaf5af814584eecfba505b3882e4d8")'
 RUN Rscript -e 'remotes::install_github("Thinkr-open/golem@06707a8bf33770bb6f08466923d06fbb4607b2cd")'
 RUN mkdir /build_zone
+RUN mkdir /build_zone/logs
 ADD . /build_zone
 WORKDIR /build_zone
 RUN R -e 'remotes::install_local(upgrade="never")'
