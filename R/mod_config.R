@@ -96,9 +96,18 @@ mod_config_server <-
     }
     # When a map marker is clicked, add a new row on the config tab
     observeEvent(mapData$rvData$siteID, {
+      # browser()
       # print("fired")
       # print("mapData$rvData$siteID")
-      # print(mapData$rvData$siteID)
+      print(mapData$rvData$siteID)
+      req(mapData$rvData$siteID != 0)
+      first_char <- substr(mapData$rvData$siteID, 0, 1)
+      print(first_char)
+      if(first_char == 'n') {
+        print("new charger")
+      } else {
+        print("upgrading existing charger")
+      }
       
       if (mapData$rvData$siteID > 0) {
         removeUI(selector = "#postSubmitText")
@@ -129,7 +138,7 @@ mod_config_server <-
         
         
       }
-      if (mapData$rvData$siteID == 1) {
+      if (!setText_exists && length(mapData$rvData$siteIDs) == 1) {
         # removeUI(selector = '#leadText')
         insertUI(
           selector = '#submitReset',
@@ -225,6 +234,7 @@ mod_config_server <-
     
     attachRemoveObserver <- function(site_id) {
       observeEvent(input[[paste0("removeBtn", site_id)]], {
+        # browser()
         print("Button clicked")
         print(site_id)
         
@@ -505,7 +515,7 @@ mod_config_server <-
       print("-------------------")
       print(query_ap)
       
-      # browser()
+      browser()
       conn <- pool::poolCheckout(pool)
       DBI::dbBegin(conn)
       if (input$set_radio == '1') {
@@ -590,15 +600,19 @@ mod_config_server <-
     formNewEVSEQuery <- function() {
       rest_new_evse_query <- ''
       trans_values <- c()
-      
+      browser()
       for (site_id in mapData$rvData$siteIDs) {
+        # Test whether the new site is a new charger or an upgrade
+        if (substr(site_id, 1, 1) == 'n') {
+          
+        siteDetailRow <- mapData$rvData$siteDetailsDF[mapData$rvData$siteDetailsDF$siteID == site_id, ]
         rest_new_evse_query <-
           glue::glue(
             rest_new_evse_query,
-            "(currval('analysis_record_analysis_id_seq'), {mapData$rvData$siteDetailsDF[site_id, 'trip_count']}, ",
+            "(currval('analysis_record_analysis_id_seq'), {siteDetailRow$trip_count}, ",
             "'",
-            mapData$rvData$siteDetailsDF[site_id, "od_pairs"],
-            "', {mapData$rvData$siteDetailsDF[site_id, 'latitude']}, {mapData$rvData$siteDetailsDF[site_id, 'longitude']}, {input[[paste0('dcfc_plug_count', site_id)]]}, {input[[paste0('dcfc_plug_power', site_id)]]}, {input[[paste0('level2_plug_count', site_id)]]}, {input[[paste0('level2_plug_power', site_id)]]},
+            siteDetailRow$od_pairs,
+            "', {siteDetailRow$latitude}, {siteDetailRow$longitude}, {input[[paste0('dcfc_plug_count', site_id)]]}, {input[[paste0('dcfc_plug_power', site_id)]]}, {input[[paste0('level2_plug_count', site_id)]]}, {input[[paste0('level2_plug_power', site_id)]]},
             {input[[paste0('fixed_charging_price_slider', site_id)]]}, '",
             input[[paste0("dd_var_charging_unit", site_id)]],
             "', {input[[paste0('var_charging_price_slider', site_id)]]}, {input[[paste0('fixed_parking_price_slider', site_id)]]}, '",
@@ -607,8 +621,30 @@ mod_config_server <-
             input[[paste0("dd_level2_var_charging_unit", site_id)]],
             "', {input[[paste0('level2_var_charging_price_slider', site_id)]]}, {input[[paste0('level2_fixed_parking_price_slider', site_id)]]}, '",
             input[[paste0("dd_level2_var_parking_unit", site_id)]],
-            "', {input[[paste0('level2_var_parking_price_slider', site_id)]]}, {input[[paste0('dcfc_plug_type', site_id)]]}), "
+            "', {input[[paste0('level2_var_parking_price_slider', site_id)]]}, {input[[paste0('dcfc_plug_type', site_id)]]}, '", 'new', "', ''), "
           )
+        
+        } else {
+          siteDetailRow <- mapData$rvData$siteDetailsDF[mapData$rvData$siteDetailsDF$siteID == site_id, ]
+          rest_new_evse_query <-
+            glue::glue(
+              rest_new_evse_query,
+              "(currval('analysis_record_analysis_id_seq'), {siteDetailRow$trip_count}, ",
+              "'",
+              siteDetailRow$od_pairs,
+              "', {siteDetailRow$latitude}, {siteDetailRow$longitude}, {input[[paste0('dcfc_plug_count', site_id)]]}, {input[[paste0('dcfc_plug_power', site_id)]]}, {input[[paste0('level2_plug_count', site_id)]]}, {input[[paste0('level2_plug_power', site_id)]]},
+            {input[[paste0('fixed_charging_price_slider', site_id)]]}, '",
+              input[[paste0("dd_var_charging_unit", site_id)]],
+              "', {input[[paste0('var_charging_price_slider', site_id)]]}, {input[[paste0('fixed_parking_price_slider', site_id)]]}, '",
+              input[[paste0("dd_var_parking_unit", site_id)]],
+              "', {input[[paste0('var_parking_price_slider', site_id)]]}, {input[[paste0('level2_fixed_charging_price_slider', site_id)]]}, '",
+              input[[paste0("dd_level2_var_charging_unit", site_id)]],
+              "', {input[[paste0('level2_var_charging_price_slider', site_id)]]}, {input[[paste0('level2_fixed_parking_price_slider', site_id)]]}, '",
+              input[[paste0("dd_level2_var_parking_unit", site_id)]],
+              "', {input[[paste0('level2_var_parking_price_slider', site_id)]]}, {input[[paste0('dcfc_plug_type', site_id)]]}, '", 'upgrade', "', '" , siteDetailRow$siteID, "'), "
+            )
+        }
+        
       }
       # remove the last comma
       rest_new_evse_query <-
@@ -621,7 +657,7 @@ mod_config_server <-
                                 dcfc_var_charging_price, dcfc_fixed_parking_price, dcfc_var_parking_price_unit,
                                 dcfc_var_parking_price, level2_fixed_charging_price, level2_var_charging_price_unit,
                                 level2_var_charging_price, level2_fixed_parking_price, level2_var_parking_price_unit,
-                                level2_var_parking_price, connector_code) VALUES
+                                level2_var_parking_price, connector_code, station_type, comments) VALUES
           {rest_new_evse_query}"
         )
       
@@ -736,6 +772,7 @@ mod_config_server <-
     removeSubmitResetBtns <- function() {
       print("remove submit reset Btns")
       removeUI(selector = '#submitResetBtns')
+      setText_exists <<- FALSE
     }
     
     observeEvent(input$postSubmitBtn, {
